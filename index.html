@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UWWB Multi-Layers · POC</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <!-- Password gate (client-side, same as CaTa) -->
+  <script>
+    var PWD = "layers2026";
+    if (sessionStorage.getItem("ml_auth") !== "1") {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("root").style.display = "none";
+        var gate = document.getElementById("pw-gate");
+        gate.style.display = "flex";
+        document.getElementById("pw-btn").onclick = function () {
+          var val = document.getElementById("pw-input").value;
+          if (val === PWD) {
+            sessionStorage.setItem("ml_auth", "1");
+            gate.style.display = "none";
+            document.getElementById("root").style.display = "";
+          } else {
+            document.getElementById("pw-error").style.display = "block";
+          }
+        };
+        document.getElementById("pw-input").addEventListener("keydown", function (e) {
+          if (e.key === "Enter") document.getElementById("pw-btn").click();
+        });
+      });
+    }
+  </script>
+
+  <div id="pw-gate" style="display:none; position:fixed; inset:0; background:#fff; z-index:9999;
+    flex-direction:column; align-items:center; justify-content:center; gap:20px; font-family:'IBM Plex Sans',sans-serif;">
+    <img src="src/hdi-logo.png" alt="HDI" style="height:40px; margin-bottom:8px;" />
+    <h2 style="font-size:18px; font-weight:600; color:#282828; margin:0;">Multi-Layers Prototype</h2>
+    <p style="font-size:13px; color:#575757; margin:0;">Enter password to continue</p>
+    <input id="pw-input" type="password" placeholder="Password"
+      style="padding:10px 14px; width:240px; border:1px solid #e0e4ea; border-radius:4px;
+        font-size:14px; font-family:inherit; outline:none;" />
+    <button id="pw-btn"
+      style="padding:9px 24px; background:#65A518; color:#fff; border:none; border-radius:4px;
+        font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;">
+      Enter
+    </button>
+    <p id="pw-error" style="display:none; color:#e60018; font-size:13px; margin:0;">Incorrect password</p>
+  </div>
+
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="src/components.jsx"></script>
+  <script type="text/babel" src="src/steps.jsx"></script>
+  <script type="text/babel" src="src/app.jsx"></script>
+</body>
+</html>
