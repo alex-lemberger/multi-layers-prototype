@@ -101,7 +101,7 @@ function LayerSwitcher({ layers, activeLayerIdx, onLayerChange }) {
 function makeInitialLayers() {
   return [
     {
-      id: 0, name: "Primary Layer", type: "Primary",
+      id: 0, name: "Primary Layer", type: "Primary", product: "Cyber Plus",
       rangeFrom: 0, rangeTo: 1000000,
       limit: 1000000, attachmentPoint: 0, deductible: 50000,
       premium: 55666, rate: "5.57%", participating: true,
@@ -116,7 +116,7 @@ function makeInitialLayers() {
       ],
     },
     {
-      id: 1, name: "Excess Layer 1", type: "Excess",
+      id: 1, name: "Excess Layer 1", type: "Excess", product: "Cyber Baseline",
       rangeFrom: 1000000, rangeTo: 4000000,
       limit: 3000000, attachmentPoint: 1000000, deductible: 10000,
       premium: null, rate: null, participating: true,
@@ -130,7 +130,7 @@ function makeInitialLayers() {
       ],
     },
     {
-      id: 2, name: "Excess Layer 2", type: "Excess",
+      id: 2, name: "Excess Layer 2", type: "Excess", product: "Cyber Baseline",
       rangeFrom: 4000000, rangeTo: 10000000,
       limit: 6000000, attachmentPoint: 4000000, deductible: 0,
       premium: null, rate: null, participating: false,
@@ -193,6 +193,7 @@ function saveToLS(key, value) {
 function AddLayerDrawer({ open, onClose, onAdd, nextIndex }) {
   const [name, setName] = useState_app("Excess Layer " + nextIndex);
   const [layerType, setLayerType] = useState_app("Excess");
+  const [product, setProduct] = useState_app("Cyber Baseline");
 
   useEffect_app(() => {
     setName("Excess Layer " + nextIndex);
@@ -225,10 +226,18 @@ function AddLayerDrawer({ open, onClose, onAdd, nextIndex }) {
                 <option value="Excess">Excess</option>
               </select>
             </div>
+            <div style={{gridColumn: "1 / -1"}}>
+              <div className="dfield__label" style={{marginBottom: 6}}>Product</div>
+              <select className="form-input form-select"
+                value={product} onChange={e => setProduct(e.target.value)}>
+                <option value="Cyber Baseline">Cyber Baseline</option>
+                <option value="Cyber Plus">Cyber Plus</option>
+              </select>
+            </div>
           </div>
         </div>
         <div className="drawer__footer">
-          <button className="btn btn--primary" onClick={() => { onAdd({ name, type: layerType }); onClose(); }}>
+          <button className="btn btn--primary" onClick={() => { onAdd({ name, type: layerType, product }); onClose(); }}>
             Create Layer
           </button>
           <button className="btn btn--outline" onClick={onClose}>Cancel</button>
@@ -307,6 +316,7 @@ function CopyLayerDrawer({ open, onClose, onCopy, sourceLayer, nextIndex }) {
 function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
   const [name, setName] = useState_app("");
   const [layerType, setLayerType] = useState_app("Excess");
+  const [product, setProduct] = useState_app("Cyber Baseline");
   const [limit, setLimit] = useState_app("");
   const [attachmentPoint, setAttachmentPoint] = useState_app("");
   const [deductible, setDeductible] = useState_app("");
@@ -316,6 +326,7 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
     if (layer) {
       setName(layer.name);
       setLayerType(layer.type);
+      setProduct(layer.product || "Cyber Baseline");
       setLimit(String(layer.limit || 0));
       setAttachmentPoint(String(layer.attachmentPoint || 0));
       setDeductible(String(layer.deductible || 0));
@@ -346,6 +357,13 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
               <select className="form-input form-select" value={layerType} onChange={e => setLayerType(e.target.value)}>
                 <option value="Primary">Primary</option>
                 <option value="Excess">Excess</option>
+              </select>
+            </div>
+            <div style={{gridColumn: "1 / -1"}}>
+              <div className="dfield__label" style={{marginBottom: 6}}>Product</div>
+              <select className="form-input form-select" value={product} onChange={e => setProduct(e.target.value)}>
+                <option value="Cyber Baseline">Cyber Baseline</option>
+                <option value="Cyber Plus">Cyber Plus</option>
               </select>
             </div>
             <div>
@@ -390,6 +408,7 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
             onSave(layerIdx, {
               name,
               type: layerType,
+              product,
               limit: Number(limit) || 0,
               attachmentPoint: Number(attachmentPoint) || 0,
               deductible: Number(deductible) || 0,
@@ -435,7 +454,9 @@ function App() {
     const onHash = () => {
       const hash = window.location.hash.replace("#", "");
       const allNavIds = NAV_ITEMS.flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
-      if (allNavIds.includes(hash)) setActiveNav(hash);
+      // Hidden routes (no nav item, direct URL only)
+      const hiddenRoutes = ["layered-coverage-poc"];
+      if (allNavIds.includes(hash) || hiddenRoutes.includes(hash)) setActiveNav(hash);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -450,6 +471,7 @@ function App() {
       id: layers.length,
       name: spec.name,
       type: spec.type,
+      product: spec.product || "Cyber Baseline",
       rangeFrom: layers[layers.length - 1]?.rangeTo || 0,
       rangeTo: (layers[layers.length - 1]?.rangeTo || 0) + 5000000,
       limit: 5000000,
@@ -494,6 +516,7 @@ function App() {
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "layered-coverage-poc": return <LayeredCoveragePocScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "program-coverage":   return <ProgramCoverageScreen layer={activeLayer} allLayers={layers} />;
       case "risk-profile":       return <RiskProfileScreen layer={activeLayer} allLayers={layers} />;
       case "technical-premium":  return <TechnicalPremiumScreen layer={activeLayer} allLayers={layers} />;

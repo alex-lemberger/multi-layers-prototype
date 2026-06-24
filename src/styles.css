@@ -878,3 +878,389 @@ body {
 .lc-legend__dot--included { background: var(--accent-soft); border-color: var(--accent); }
 .lc-legend__dot--excluded { background: #fef5f5; border-color: #f5c6c6; }
 .lc-legend__dot--empty { background: var(--bg-stripe); }
+.lct-inherited-legend {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 10px; height: 10px;
+}
+
+/* ==========================================================================
+   Layered Coverage Tree × Layers Matrix
+   ========================================================================== */
+.lct-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.lct-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+/* Header */
+.lct-th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--bg-sunk);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.lct-th--name {
+  width: 34%;
+  min-width: 280px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-sunk);
+}
+.lct-th--layer {
+  text-align: center;
+  min-width: 160px;
+}
+.lct-th--active {
+  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
+}
+
+/* Layer column header */
+.lct-layer-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.lct-layer-head__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.lct-layer-head__range {
+  font-size: 10px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+
+/* Rows */
+.lct-row {
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 60ms;
+}
+.lct-row:hover { background: var(--bg-stripe); }
+.lct-row--root {
+  border-top: 1px solid var(--border);
+}
+.lct-row--root:first-child { border-top: none; }
+
+/* Cells */
+.lct-cell {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--fg);
+  vertical-align: middle;
+}
+.lct-cell--name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border-soft);
+}
+.lct-row:hover .lct-cell--name {
+  background: var(--bg-stripe);
+}
+
+/* Name inner layout */
+.lct-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.lct-name-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+.lct-row--selected .lct-name-text { font-weight: 500; }
+
+/* Spacer for leaf nodes (same width as chevron button) */
+.lct-tree-spacer {
+  display: inline-block;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* Layer cells */
+.lct-cell--layer {
+  text-align: center;
+  min-width: 140px;
+  border-left: 1px solid var(--border-soft);
+}
+.lct-cell--na {
+  background: var(--bg-stripe);
+}
+.lct-cell--excluded {
+  background: #fef8f8;
+}
+.lct-cell--included {
+  background: var(--bg-elev);
+}
+.lct-cell--highlight {
+  background: var(--accent-soft);
+}
+
+.lct-dash {
+  color: var(--fg-faint);
+  font-size: 14px;
+}
+.lct-excluded-label {
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+.lct-inherited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Cell values (limit/agg/ded) */
+.lct-cell-vals {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lct-val-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+}
+.lct-val-label {
+  color: var(--fg-muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.lct-val-num {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg);
+  text-align: right;
+}
+
+/* ==========================================================================
+   Coverage Tree Table (matches live UWWB coverage selection)
+   ========================================================================== */
+.ct-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.ct-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elev);
+  width: 200px;
+}
+.ct-search__input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  width: 100%;
+}
+.ct-search__input::placeholder { color: var(--fg-muted); }
+
+.ct-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ct-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fg-soft);
+  cursor: pointer;
+  user-select: none;
+}
+.ct-radio--active { color: var(--fg); font-weight: 500; }
+.ct-radio__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-elev);
+  position: relative;
+}
+.ct-radio--active .ct-radio__dot {
+  border-color: var(--fg-soft);
+}
+.ct-radio--active .ct-radio__dot::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--fg-soft);
+}
+.ct-radio__dot--green {
+  border-color: var(--accent);
+}
+.ct-radio--active .ct-radio__dot--green {
+  border-color: var(--accent);
+}
+.ct-radio--active .ct-radio__dot--green::after {
+  background: var(--accent);
+}
+
+/* Table */
+.ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.ct-th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunk);
+  white-space: nowrap;
+}
+.ct-th--name { width: 34%; }
+.ct-th--center { text-align: center; }
+
+/* Row */
+.ct-row {
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 80ms;
+}
+.ct-row:hover { background: var(--bg-stripe); }
+.ct-row--root { border-top: 1px solid var(--border); }
+.ct-row--root:first-child { border-top: none; }
+
+.ct-cell {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--fg);
+  vertical-align: middle;
+}
+.ct-cell--center { text-align: center; }
+.ct-cell--name { padding-right: 8px; }
+
+/* Name cell inner layout */
+.ct-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.ct-name-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Collapse chevron */
+.ct-chevron {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 3px;
+}
+.ct-chevron:hover { background: var(--bg-sunk); color: var(--fg); }
+
+/* Checkbox */
+.ct-check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg-elev);
+}
+.ct-check--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Tree connector lines (dotted, like the live app) */
+.ct-connector {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  pointer-events: none;
+}
+.ct-connector__vert {
+  position: absolute;
+  left: 9px;
+  top: -10px;
+  bottom: 50%;
+  width: 0;
+  border-left: 1.5px dotted var(--border-strong);
+}
+.ct-connector__horiz {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 10px;
+  height: 0;
+  border-top: 1.5px dotted var(--border-strong);
+}
+
+/* Edit pencil button */
+.ct-edit-btn {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ct-edit-btn:hover { background: var(--accent-soft); }
+
+/* Unselected rows — muted edit icon */
+.ct-row:not(.ct-row--selected) .ct-edit-btn {
+  color: var(--fg-faint);
+}
+.ct-row:not(.ct-row--selected) .ct-edit-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}

@@ -354,13 +354,14 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
         <table className="grid-tbl">
           <thead>
             <tr>
-              <th style={{width: "20%"}}>Layer Name</th>
-              <th style={{width: "10%"}}>Type</th>
-              <th style={{width: "14%"}}>Range</th>
-              <th style={{width: "14%"}}>Limit</th>
-              <th style={{width: "14%"}}>Attachment Point</th>
-              <th style={{width: "14%"}}>Participation</th>
-              <th style={{width: "14%"}}>Actions</th>
+              <th style={{width: "18%"}}>Layer Name</th>
+              <th style={{width: "9%"}}>Type</th>
+              <th style={{width: "13%"}}>Product</th>
+              <th style={{width: "13%"}}>Range</th>
+              <th style={{width: "12%"}}>Limit</th>
+              <th style={{width: "12%"}}>Attachment Point</th>
+              <th style={{width: "12%"}}>Participation</th>
+              <th style={{width: "11%"}}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -370,6 +371,7 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
               <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
                 <td className="t-strong">{layer.name}</td>
                 <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
+                <td>{layer.product || "—"}</td>
                 <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
                 <td className="t-mono">{fmtEUR(layer.limit)}</td>
                 <td className="t-mono">{fmtEUR(layer.attachmentPoint)}</td>
@@ -435,13 +437,14 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
         <table className="grid-tbl">
           <thead>
             <tr>
-              <th style={{width: "18%"}}>Layer Name</th>
-              <th style={{width: "10%"}}>Type</th>
-              <th style={{width: "14%"}}>Range</th>
-              <th style={{width: "12%"}}>Limit</th>
-              <th style={{width: "14%"}}>Attachment Point</th>
-              <th style={{width: "12%"}}>Deductible</th>
-              <th style={{width: "12%"}}>Participation</th>
+              <th style={{width: "16%"}}>Layer Name</th>
+              <th style={{width: "9%"}}>Type</th>
+              <th style={{width: "12%"}}>Product</th>
+              <th style={{width: "12%"}}>Range</th>
+              <th style={{width: "11%"}}>Limit</th>
+              <th style={{width: "12%"}}>Attachment Point</th>
+              <th style={{width: "10%"}}>Deductible</th>
+              <th style={{width: "10%"}}>Participation</th>
               <th style={{width: "8%"}}>Actions</th>
             </tr>
           </thead>
@@ -452,6 +455,7 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
               <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
                 <td className="t-strong">{layer.name}</td>
                 <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
+                <td>{layer.product || "—"}</td>
                 <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
                 <td className="t-mono">{fmtEUR(layer.limit)}</td>
                 <td className="t-mono">{fmtEUR(layer.attachmentPoint)}</td>
@@ -719,11 +723,10 @@ function OverviewScreen({ onNavigate, allLayers }) {
   );
 }
 
-// ---- Layered Coverage screen (the "spreading" matrix) ----
-// Rows = coverages from Program Coverage
-// Columns = layers
-// Cells = limit/deductible/included per coverage per layer
-function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
+// ---- Layered Coverage POC (previous design — hidden at #layered-coverage-poc) ----
+// Flat matrix + per-layer dual-view (no tree indentation)
+// Uses lc-* CSS classes, grid-tbl, pf-btn from the original deployed version
+function LayeredCoveragePocScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [viewMode, setViewMode] = useS("matrix"); // "matrix" or "per-layer"
   const [selectedLayerFilter, setSelectedLayerFilter] = useS(-1); // -1 = all
 
@@ -808,15 +811,15 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
                       <td key={li} className={`lc-cell lc-cell--included${li === activeLayerIdx ? " lc-cell--highlight" : ""}`}>
                         <div className="lc-cell__values">
                           <div className="lc-cell__row">
-                            <span className="lc-cell__label">Limit</span>
+                            <span className="lc-cell__label">LIMIT</span>
                             <span className="lc-cell__value">{cov.limitOcc ? fmtEUR(cov.limitOcc) : "—"}</span>
                           </div>
                           <div className="lc-cell__row">
-                            <span className="lc-cell__label">Agg</span>
+                            <span className="lc-cell__label">AGG</span>
                             <span className="lc-cell__value">{cov.limitAgg ? fmtEUR(cov.limitAgg) : "—"}</span>
                           </div>
                           <div className="lc-cell__row">
-                            <span className="lc-cell__label">Ded</span>
+                            <span className="lc-cell__label">DED</span>
                             <span className="lc-cell__value">{cov.deductible != null ? fmtEUR(cov.deductible) : "—"}</span>
                           </div>
                         </div>
@@ -856,7 +859,7 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
                 </div>
 
                 {included.length > 0 && (
-                  <table className="grid-tbl" style={{marginBottom: 16}}>
+                  <table className="grid-tbl" style={{margin: "16px 20px", width: "calc(100% - 40px)"}}>
                     <thead>
                       <tr>
                         <th style={{width: "32%"}}>Coverage</th>
@@ -901,6 +904,229 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
         <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included (with limits)</span>
         <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Not included in layer</span>
         <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--empty" /> Coverage not configured</span>
+      </div>
+    </div>
+  );
+}
+
+// ---- Layered Coverage screen — tree rows × layer columns ----
+// Left column: full coverage hierarchy (indented, collapsible) from coverage.json
+// Right columns: one per layer — showing how each coverage is spread across the program
+// This is the UW's main view: "I see my coverage tree, and for each coverage I see
+// what each layer provides (limit, ded, included/not)"
+function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const [collapsed, setCollapsed] = useS({});
+  const [showSelectedOnly, setShowSelectedOnly] = useS(false);
+
+  // Load coverage.json once
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => setCoverageTree(data))
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  if (!coverageTree) return <div className="main__title">Layered Coverage</div>;
+
+  const toggleCollapse = (kindId) => {
+    setCollapsed(c => ({ ...c, [kindId]: !c[kindId] }));
+  };
+
+  // Visibility filter
+  const isVisible = (cov) => {
+    if (!showSelectedOnly) return true;
+    if (cov.selected) return true;
+    return (cov.children || []).some(c => isVisible(c));
+  };
+
+  // Simulated per-layer coverage data
+  // In the real app, each layer has its own coverage config.
+  // For this prototype, we derive plausible spreading from the layer data
+  // + the coverage tree selection state.
+  const getLayerCoverageInfo = (cov, layer, layerIdx) => {
+    // Match by name (fuzzy — the layer.coverages use short names)
+    const covName = cov.coverageName;
+    const match = (layer.coverages || []).find(c => {
+      // Try exact or substring match
+      return covName.includes(c.name) || c.name.includes(covName) ||
+        covName.replace(/[&()]/g, "").includes(c.name.replace(/[&()]/g, ""));
+    });
+
+    if (match) {
+      return {
+        included: match.included,
+        limitOcc: match.limitOcc,
+        limitAgg: match.limitAgg,
+        deductible: match.deductible,
+      };
+    }
+
+    // No match in this layer's coverages — if coverage is selected,
+    // show it as "inherited" (included but no specific config).
+    // If not selected, show as not applicable.
+    if (!cov.selected) return { included: false, na: true };
+
+    // Selected but not explicitly in this layer → show as included (inherited)
+    return { included: true, inherited: true };
+  };
+
+  // Flatten the tree for rendering — produces rows with depth info
+  const flattenRows = (items, depth) => {
+    const rows = [];
+    const visible = items.filter(c => isVisible(c));
+
+    visible.forEach((cov, idx) => {
+      const kindId = cov.coverageKindId;
+      const hasChildren = cov.children && cov.children.length > 0;
+      const isCollapsed = collapsed[kindId];
+
+      rows.push({ cov, depth, hasChildren, isCollapsed, kindId });
+
+      if (hasChildren && !isCollapsed) {
+        rows.push(...flattenRows(cov.children, depth + 1));
+      }
+    });
+    return rows;
+  };
+
+  const flatRows = flattenRows(coverageTree, 0);
+
+  return (
+    <div>
+      <div className="main__title">Layered Coverage</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Coverage tree spread across layers. Each column shows how a coverage is distributed in the layer program.
+      </p>
+
+      {/* Controls */}
+      <div className="ct-controls">
+        <div className="ct-filter-toggle">
+          <label className={`ct-radio${!showSelectedOnly ? " ct-radio--active" : ""}`} onClick={() => setShowSelectedOnly(false)}>
+            <span className="ct-radio__dot ct-radio__dot--green" /> All coverages
+          </label>
+          <label className={`ct-radio${showSelectedOnly ? " ct-radio--active" : ""}`} onClick={() => setShowSelectedOnly(true)}>
+            <span className="ct-radio__dot" /> Selected only
+          </label>
+        </div>
+      </div>
+
+      {/* Tree × Layers matrix */}
+      <div className="lct-wrap">
+        <table className="lct-table">
+          <thead>
+            <tr>
+              <th className="lct-th lct-th--name">Coverage</th>
+              {layers.map((l, li) => (
+                <th key={li} className={`lct-th lct-th--layer${li === activeLayerIdx ? " lct-th--active" : ""}`}>
+                  <div className="lct-layer-head">
+                    <span className={`ls-type-badge ls-type-badge--${l.type.toLowerCase()}`} style={{ fontSize: 9, padding: "1px 6px" }}>{l.type}</span>
+                    <span className="lct-layer-head__name">{l.name}</span>
+                    <span className="lct-layer-head__range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {flatRows.map(({ cov, depth, hasChildren, isCollapsed, kindId }) => {
+              const isSelected = cov.selected;
+              const isRoot = depth === 0;
+
+              return (
+                <tr key={kindId} className={`lct-row${isSelected ? " lct-row--selected" : ""}${isRoot ? " lct-row--root" : ""}`}>
+                  {/* Coverage name column — tree structure */}
+                  <td className="lct-cell lct-cell--name" style={{ paddingLeft: 14 + depth * 28 }}>
+                    <div className="lct-name-inner">
+                      {/* Collapse chevron */}
+                      {hasChildren ? (
+                        <button className="ct-chevron" onClick={() => toggleCollapse(kindId)}>
+                          <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                        </button>
+                      ) : (
+                        depth > 0 ? <span className="lct-tree-spacer" /> : null
+                      )}
+                      {/* Checkbox */}
+                      <span className={`ct-check${isSelected ? " ct-check--on" : ""}`}>
+                        {isSelected && <i className="fa-solid fa-check" style={{ fontSize: 10, color: "#fff" }} />}
+                      </span>
+                      {/* Name */}
+                      <span className="lct-name-text">{cov.coverageName}</span>
+                    </div>
+                  </td>
+
+                  {/* One cell per layer */}
+                  {layers.map((l, li) => {
+                    const info = getLayerCoverageInfo(cov, l, li);
+                    const isActiveLayer = li === activeLayerIdx;
+
+                    if (info.na) {
+                      return (
+                        <td key={li} className="lct-cell lct-cell--layer lct-cell--na">
+                          <span className="lct-dash">—</span>
+                        </td>
+                      );
+                    }
+
+                    if (!info.included) {
+                      return (
+                        <td key={li} className="lct-cell lct-cell--layer lct-cell--excluded">
+                          <span className="lct-excluded-label">Not incl.</span>
+                        </td>
+                      );
+                    }
+
+                    // Included — show limit/ded values
+                    if (info.inherited) {
+                      // Inherited from parent — just show a check
+                      return (
+                        <td key={li} className={`lct-cell lct-cell--layer lct-cell--included${isActiveLayer ? " lct-cell--highlight" : ""}`}>
+                          <span className="lct-inherited"><i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--accent)" }} /></span>
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={li} className={`lct-cell lct-cell--layer lct-cell--included${isActiveLayer ? " lct-cell--highlight" : ""}`}>
+                        <div className="lct-cell-vals">
+                          {info.limitOcc != null && (
+                            <div className="lct-val-row">
+                              <span className="lct-val-label">Lim</span>
+                              <span className="lct-val-num">{fmtEUR(info.limitOcc)}</span>
+                            </div>
+                          )}
+                          {info.limitAgg != null && (
+                            <div className="lct-val-row">
+                              <span className="lct-val-label">Agg</span>
+                              <span className="lct-val-num">{fmtEUR(info.limitAgg)}</span>
+                            </div>
+                          )}
+                          {info.deductible != null && (
+                            <div className="lct-val-row">
+                              <span className="lct-val-label">Ded</span>
+                              <span className="lct-val-num">{fmtEUR(info.deductible)}</span>
+                            </div>
+                          )}
+                          {info.limitOcc == null && info.limitAgg == null && info.deductible == null && (
+                            <span className="lct-inherited"><i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--accent)" }} /></span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Legend */}
+      <div className="lc-legend" style={{ marginTop: 20 }}>
+        <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included (with limits)</span>
+        <span className="lc-legend__item"><span className="lct-inherited-legend"><i className="fa-solid fa-check" style={{ fontSize: 10, color: "var(--accent)" }} /></span> Included (inherited)</span>
+        <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Not included in layer</span>
+        <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--empty" /> Not applicable</span>
       </div>
     </div>
   );
