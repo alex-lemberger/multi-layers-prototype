@@ -221,7 +221,7 @@ body {
 
 /* -- Sidebar -- */
 .sidebar {
-  width: 280px; min-width: 280px; background: var(--bg-elev);
+  width: 330px; min-width: 330px; background: var(--bg-elev);
   border-right: 1px solid var(--border); overflow-y: auto;
   display: flex; flex-direction: column;
 }
@@ -343,6 +343,18 @@ body {
   background: var(--bg-elev);
 }
 .main__title { font-size: 22px; font-weight: 700; margin-bottom: 20px; color: var(--fg); letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+.main__title-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 14px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0;
+  background: var(--accent-soft); color: var(--accent-ink);
+  border: 1px solid var(--accent-tint);
+}
+.main__title-badge::before {
+  content: "\f layer"; content: "";
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+}
 .layer-badge { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-ink); white-space: nowrap; letter-spacing: 0; margin-left: 10px; }
 
 /* -- Layer dropdown (interactive badge) -- */
@@ -1299,3 +1311,149 @@ body {
   color: var(--accent);
   background: var(--accent-soft);
 }
+
+/* ============================================================
+   Property Coverage Screen
+   ============================================================ */
+
+/* Layer tabs (shared between cyber & property) */
+.lc-layer-tabs {
+  display: flex; gap: 0; margin-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+}
+.lc-layer-tab {
+  padding: 8px 16px; font-size: 13px; font-weight: 500;
+  color: var(--fg-muted); background: none; border: none;
+  cursor: pointer; font-family: var(--font-sans);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all 0.15s;
+}
+.lc-layer-tab:hover { color: var(--fg); background: var(--bg-sunk); }
+.lc-layer-tab--active {
+  color: var(--accent-ink); font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.prop-section { margin-bottom: 24px; }
+.prop-section__title {
+  font-size: 18px; font-weight: 600; color: var(--fg);
+  margin-bottom: 6px;
+}
+.prop-section__desc {
+  font-size: 13px; color: var(--fg-muted); margin-bottom: 16px;
+}
+
+/* Define Coverage table */
+.prop-tbl {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 14px;
+}
+.prop-tbl__th {
+  text-align: left; padding: 10px 14px; font-weight: 600;
+  background: var(--bg-sunk); color: var(--fg);
+  border-bottom: 1px solid var(--border);
+}
+.prop-tbl__th--name { min-width: 280px; }
+.prop-tbl__th--check { text-align: center; width: 180px; }
+.prop-tbl__row { transition: background 0.1s; }
+.prop-tbl__row:hover { background: var(--bg-stripe); }
+.prop-tbl__td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+.prop-tbl__td--name { font-weight: 400; color: var(--fg); }
+.prop-tbl__td--check { text-align: center; }
+
+/* Checkbox */
+.prop-check {
+  width: 18px; height: 18px; cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* Limits / Deductibles table */
+.prop-tbl--limits .prop-tbl__th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+.prop-select {
+  padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px;
+  background: #fff; color: var(--fg); min-width: 120px;
+  font-family: var(--font-sans);
+}
+.prop-select:focus { outline: none; border-color: var(--accent); }
+.prop-input {
+  padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px;
+  width: 110px; font-family: var(--font-mono);
+}
+.prop-input:focus { outline: none; border-color: var(--accent); }
+
+/* PD / BI badge */
+.prop-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+  background: #e8f4d8; color: #3d7a0a;
+}
+.prop-badge::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: #3d7a0a;
+}
+.prop-badge--bi {
+  background: #e0ecf7; color: #1a5fa8;
+}
+.prop-badge--bi::before { background: #1a5fa8; }
+
+/* Toggle pill (Included / Excluded) */
+.prop-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 12px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: none; font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+.prop-pill__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+.prop-pill--included {
+  background: #e8f4d8; color: #3d7a0a;
+}
+.prop-pill--included .prop-pill__dot { background: #3d7a0a; }
+.prop-pill--included:hover { background: #d8ecc4; }
+.prop-pill--excluded {
+  background: #fef0f0; color: #c42b2b;
+}
+.prop-pill--excluded .prop-pill__dot { background: #c42b2b; }
+.prop-pill--excluded:hover { background: #fde0e0; }
+
+/* Liability Coverage — action buttons & add row */
+.liab-action-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-size: 14px; padding: 4px 8px;
+  border-radius: var(--radius-sm); transition: background 0.15s;
+}
+.liab-action-btn:hover { background: var(--accent-soft); }
+.liab-action-btn--danger { color: var(--fg-muted); }
+.liab-action-btn--danger:hover { color: var(--red); background: var(--red-soft); }
+
+.liab-add-btn {
+  margin-top: 14px; background: none; border: none;
+  color: var(--accent); font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-sans);
+  padding: 6px 0; display: flex; align-items: center; gap: 6px;
+}
+.liab-add-btn:hover { text-decoration: underline; }
+
+.liab-add-row {
+  margin-top: 14px; display: flex; align-items: center; gap: 10px;
+}
+.liab-add-row__save {
+  padding: 6px 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius-sm); font-size: 13px;
+  font-weight: 600; cursor: pointer; font-family: var(--font-sans);
+}
+.liab-add-row__save:hover { background: #578e14; }
+.liab-add-row__cancel {
+  padding: 6px 14px; background: none; color: var(--fg-muted);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; cursor: pointer; font-family: var(--font-sans);
+}
+.liab-add-row__cancel:hover { background: var(--bg-sunk); }

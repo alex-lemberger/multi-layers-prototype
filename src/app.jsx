@@ -149,7 +149,10 @@ const NAV_ITEMS_A = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers-settings",    label: "Layer Structure",     icon: "fa-solid fa-table-list" },
-    { id: "layered-coverage",   label: "Layered Coverage",    icon: "fa-solid fa-table-cells" },
+    { id: "layered-coverage",   label: "Coverage (Cyber)",    icon: "fa-solid fa-table-cells" },
+    { id: "prop-define",        label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
+    { id: "prop-limits",        label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
+    { id: "liability-coverage", label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
@@ -165,7 +168,10 @@ const NAV_ITEMS_B = [
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",             label: "Layer Structure",     icon: "fa-solid fa-table-list" },
-    { id: "layered-coverage",   label: "Layered Coverage",    icon: "fa-solid fa-table-cells" },
+    { id: "layered-coverage",   label: "Coverage (Cyber)",    icon: "fa-solid fa-table-cells" },
+    { id: "prop-define",        label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
+    { id: "prop-limits",        label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
+    { id: "liability-coverage", label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
   { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
@@ -517,6 +523,9 @@ function App() {
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage-poc": return <LayeredCoveragePocScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "prop-define":        return <PropDefineCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "liability-coverage": return <LiabilityCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "program-coverage":   return <ProgramCoverageScreen layer={activeLayer} allLayers={layers} />;
       case "risk-profile":       return <RiskProfileScreen layer={activeLayer} allLayers={layers} />;
       case "technical-premium":  return <TechnicalPremiumScreen layer={activeLayer} allLayers={layers} />;

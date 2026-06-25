@@ -1131,3 +1131,445 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
     </div>
   );
 }
+
+// ============================================================
+// Property Coverage — Split into 2 screens
+// Shared state via module-level ref (prototype shortcut)
+// ============================================================
+
+const PROPERTY_PERILS = [
+  { id: "flexa", name: "FLExA" },
+  { id: "srcc", name: "SRCC (Strikes, riots, civil commotions)" },
+  { id: "earthquake", name: "Earthquake" },
+  { id: "tsunami", name: "Tsunami" },
+  { id: "flood", name: "Flood" },
+  { id: "heavy-rain", name: "Heavy rain" },
+  { id: "wind", name: "Wind" },
+  { id: "hail", name: "Hail" },
+  { id: "subsidence", name: "Subsidence, Landslide" },
+  { id: "snow", name: "Weight of snow, Avalanche" },
+];
+
+const LIMIT_TYPES = ["Per Occurrence", "Aggregate", "No Limit"];
+const DEDUCTIBLE_TYPES = ["Per Occurrence", "Aggregate", "No Deductible"];
+
+function initPropertyState() {
+  return PROPERTY_PERILS.map(p => ({
+    ...p,
+    pd: p.id === "flexa",
+    bi: p.id === "flexa",
+    limits: {
+      pd: { type: "Per Occurrence", value: p.id === "flexa" ? 100300 : "" },
+      bi: { type: "No Limit", value: "" },
+    },
+    deductibles: {
+      pd: { type: "Per Occurrence", value: p.id === "flexa" ? 5000 : "" },
+      bi: { type: "No Deductible", value: "" },
+    },
+  }));
+}
+
+// Shared state across both property screens (module-level for prototype)
+let _propLayerStates = null;
+let _propListeners = [];
+function usePropState(layers, activeLayerIdx) {
+  if (!_propLayerStates) _propLayerStates = layers.map(() => initPropertyState());
+
+  const [, forceUpdate] = useS(0);
+  useE(() => {
+    const fn = () => forceUpdate(n => n + 1);
+    _propListeners.push(fn);
+    return () => { _propListeners = _propListeners.filter(f => f !== fn); };
+  }, []);
+
+  // Sync if layers added
+  if (_propLayerStates.length < layers.length) {
+    const extra = Array(layers.length - _propLayerStates.length).fill(null).map(() => initPropertyState());
+    _propLayerStates = [..._propLayerStates, ...extra];
+  }
+
+  const notify = () => _propListeners.forEach(fn => fn());
+
+  const perils = _propLayerStates[activeLayerIdx] || initPropertyState();
+
+  const updatePeril = (perilId, field, value) => {
+    _propLayerStates = _propLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return ls.map(p => p.id === perilId ? { ...p, [field]: value } : p);
+    });
+    notify();
+  };
+
+  const updateLimit = (perilId, coverage, field, value) => {
+    _propLayerStates = _propLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return ls.map(p => {
+        if (p.id !== perilId) return p;
+        return { ...p, limits: { ...p.limits, [coverage]: { ...p.limits[coverage], [field]: value } } };
+      });
+    });
+    notify();
+  };
+
+  const updateDeductible = (perilId, coverage, field, value) => {
+    _propLayerStates = _propLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return ls.map(p => {
+        if (p.id !== perilId) return p;
+        return { ...p, deductibles: { ...p.deductibles, [coverage]: { ...p.deductibles[coverage], [field]: value } } };
+      });
+    });
+    notify();
+  };
+
+  return { perils, updatePeril, updateLimit, updateDeductible };
+}
+
+// Screen 1: Define Coverage (checkbox matrix)
+function PropDefineCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const { perils, updatePeril } = usePropState(layers, activeLayerIdx);
+  const activeLayer = layers[activeLayerIdx];
+
+  return (
+    <div>
+      <div className="main__title">
+        Define Coverage (Property)
+        <span className="main__title-badge">{activeLayer.name}</span>
+      </div>
+
+      <div className="prop-section">
+        <p className="prop-section__desc">Select the scope of coverage for Property Damage and Business Interruption. You can exclude perils later as well.</p>
+
+        <table className="prop-tbl">
+          <thead>
+            <tr>
+              <th className="prop-tbl__th prop-tbl__th--name">Coverage</th>
+              <th className="prop-tbl__th prop-tbl__th--check">Property Damage</th>
+              <th className="prop-tbl__th prop-tbl__th--check">Business Interruption</th>
+            </tr>
+          </thead>
+          <tbody>
+            {perils.map(p => (
+              <tr key={p.id} className="prop-tbl__row">
+                <td className="prop-tbl__td prop-tbl__td--name">
+                  <i className="fa-solid fa-file-lines" style={{ color: "var(--fg-muted)", fontSize: 13, marginRight: 8 }} />
+                  {p.name}
+                </td>
+                <td className="prop-tbl__td prop-tbl__td--check">
+                  <button className={"prop-pill" + (p.pd ? " prop-pill--included" : " prop-pill--excluded")}
+                    onClick={() => updatePeril(p.id, "pd", !p.pd)}>
+                    <span className="prop-pill__dot" />
+                    {p.pd ? "Included" : "Excluded"}
+                  </button>
+                </td>
+                <td className="prop-tbl__td prop-tbl__td--check">
+                  <button className={"prop-pill" + (p.bi ? " prop-pill--included" : " prop-pill--excluded")}
+                    onClick={() => updatePeril(p.id, "bi", !p.bi)}>
+                    <span className="prop-pill__dot" />
+                    {p.bi ? "Included" : "Excluded"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Screen 2: Limits / Deductibles
+function PropLimitsScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const { perils, updateLimit, updateDeductible } = usePropState(layers, activeLayerIdx);
+  const activeLayer = layers[activeLayerIdx];
+  const includedPerils = perils.filter(p => p.pd || p.bi);
+
+  return (
+    <div>
+      <div className="main__title">
+        Limits / Deductibles (Property)
+        <span className="main__title-badge">{activeLayer.name}</span>
+      </div>
+
+      <div className="prop-section">
+        {includedPerils.length === 0 ? (
+          <p className="prop-section__desc">No coverages included yet. Go to "Define Coverage" to select perils first.</p>
+        ) : (
+          <F>
+            <p className="prop-section__desc">Define limits and deductibles for each included peril.</p>
+            <table className="prop-tbl prop-tbl--limits">
+              <thead>
+                <tr>
+                  <th className="prop-tbl__th prop-tbl__th--name">Coverage</th>
+                  <th className="prop-tbl__th">Type</th>
+                  <th className="prop-tbl__th">Limit Type</th>
+                  <th className="prop-tbl__th">Limit Value</th>
+                  <th className="prop-tbl__th">Deductible Type</th>
+                  <th className="prop-tbl__th">Deductible Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {includedPerils.map(p => (
+                  <F key={p.id}>
+                    {p.pd && (
+                      <tr className="prop-tbl__row">
+                        <td className="prop-tbl__td prop-tbl__td--name" rowSpan={p.pd && p.bi ? 2 : 1}>
+                          {p.name}
+                        </td>
+                        <td className="prop-tbl__td"><span className="prop-badge">PD</span></td>
+                        <td className="prop-tbl__td">
+                          <select className="prop-select" value={p.limits.pd.type}
+                            onChange={e => updateLimit(p.id, "pd", "type", e.target.value)}>
+                            {LIMIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td className="prop-tbl__td">
+                          {p.limits.pd.type !== "No Limit" && (
+                            <input type="number" className="prop-input" placeholder="Amount"
+                              value={p.limits.pd.value} onChange={e => updateLimit(p.id, "pd", "value", e.target.value)} />
+                          )}
+                        </td>
+                        <td className="prop-tbl__td">
+                          <select className="prop-select" value={p.deductibles.pd.type}
+                            onChange={e => updateDeductible(p.id, "pd", "type", e.target.value)}>
+                            {DEDUCTIBLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td className="prop-tbl__td">
+                          {p.deductibles.pd.type !== "No Deductible" && (
+                            <input type="number" className="prop-input" placeholder="Amount"
+                              value={p.deductibles.pd.value} onChange={e => updateDeductible(p.id, "pd", "value", e.target.value)} />
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    {p.bi && (
+                      <tr className="prop-tbl__row">
+                        {!p.pd && <td className="prop-tbl__td prop-tbl__td--name">{p.name}</td>}
+                        <td className="prop-tbl__td"><span className="prop-badge prop-badge--bi">BI</span></td>
+                        <td className="prop-tbl__td">
+                          <select className="prop-select" value={p.limits.bi.type}
+                            onChange={e => updateLimit(p.id, "bi", "type", e.target.value)}>
+                            {LIMIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td className="prop-tbl__td">
+                          {p.limits.bi.type !== "No Limit" && (
+                            <input type="number" className="prop-input" placeholder="Amount"
+                              value={p.limits.bi.value} onChange={e => updateLimit(p.id, "bi", "value", e.target.value)} />
+                          )}
+                        </td>
+                        <td className="prop-tbl__td">
+                          <select className="prop-select" value={p.deductibles.bi.type}
+                            onChange={e => updateDeductible(p.id, "bi", "type", e.target.value)}>
+                            {DEDUCTIBLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </td>
+                        <td className="prop-tbl__td">
+                          {p.deductibles.bi.type !== "No Deductible" && (
+                            <input type="number" className="prop-input" placeholder="Amount"
+                              value={p.deductibles.bi.value} onChange={e => updateDeductible(p.id, "bi", "value", e.target.value)} />
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </F>
+                ))}
+              </tbody>
+            </table>
+          </F>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Liability Coverage Screen
+// ============================================================
+
+const LIABILITY_TOI_OPTIONS = ["BI/PD/FL", "BI/PD", "PD/FL", "BI", "PD", "FL"];
+
+function initLiabilityState() {
+  return {
+    contract: {
+      program: "General Liability Baseline",
+      toi: "BI/PD/FL", occ: 100000, max: 5, agg: 500000,
+      dedToi: "BI/PD/FL", dedValue: 1000, pol: false,
+    },
+    coverages: [
+      { id: "pub-liab", name: "Public Liability", toi: "BI/PD/FL", occ: 100000, max: 5, agg: 500000, dedToi: "BI/PD/FL", dedValue: 1000 },
+    ],
+  };
+}
+
+let _liabLayerStates = null;
+let _liabListeners = [];
+function useLiabState(layers, activeLayerIdx) {
+  if (!_liabLayerStates) _liabLayerStates = layers.map(() => initLiabilityState());
+
+  const [, forceUpdate] = useS(0);
+  useE(() => {
+    const fn = () => forceUpdate(n => n + 1);
+    _liabListeners.push(fn);
+    return () => { _liabListeners = _liabListeners.filter(f => f !== fn); };
+  }, []);
+
+  if (_liabLayerStates.length < layers.length) {
+    const extra = Array(layers.length - _liabLayerStates.length).fill(null).map(() => initLiabilityState());
+    _liabLayerStates = [..._liabLayerStates, ...extra];
+  }
+
+  const notify = () => _liabListeners.forEach(fn => fn());
+  const state = _liabLayerStates[activeLayerIdx] || initLiabilityState();
+
+  const updateContract = (field, value) => {
+    _liabLayerStates = _liabLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return { ...ls, contract: { ...ls.contract, [field]: value } };
+    });
+    notify();
+  };
+
+  const updateCoverage = (covId, field, value) => {
+    _liabLayerStates = _liabLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return { ...ls, coverages: ls.coverages.map(c => c.id === covId ? { ...c, [field]: value } : c) };
+    });
+    notify();
+  };
+
+  const addCoverage = (name) => {
+    _liabLayerStates = _liabLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      const newCov = { id: "cov-" + Date.now(), name, toi: "BI/PD/FL", occ: 0, max: 1, agg: 0, dedToi: "BI/PD/FL", dedValue: 0 };
+      return { ...ls, coverages: [...ls.coverages, newCov] };
+    });
+    notify();
+  };
+
+  const removeCoverage = (covId) => {
+    _liabLayerStates = _liabLayerStates.map((ls, i) => {
+      if (i !== activeLayerIdx) return ls;
+      return { ...ls, coverages: ls.coverages.filter(c => c.id !== covId) };
+    });
+    notify();
+  };
+
+  return { state, updateContract, updateCoverage, addCoverage, removeCoverage };
+}
+
+function LiabilityCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const { state, updateContract, updateCoverage, addCoverage, removeCoverage } = useLiabState(layers, activeLayerIdx);
+  const activeLayer = layers[activeLayerIdx];
+  const [showAdd, setShowAdd] = useS(false);
+  const [newName, setNewName] = useS("");
+
+  const fmtNum = (n) => {
+    if (!n && n !== 0) return "";
+    return Number(n).toLocaleString("en-US");
+  };
+
+  return (
+    <div>
+      <div className="main__title">
+        Coverage (Liability)
+        <span className="main__title-badge">{activeLayer.name}</span>
+      </div>
+
+      {/* Contract Limits and Deductibles */}
+      <div className="prop-section">
+        <h2 className="prop-section__title">Contract Limits and Deductibles</h2>
+        <table className="prop-tbl">
+          <thead>
+            <tr>
+              <th className="prop-tbl__th" rowSpan="2">Program Structure</th>
+              <th className="prop-tbl__th" colSpan="4" style={{ textAlign: "center", borderBottom: "1px solid var(--border)" }}>Limits</th>
+              <th className="prop-tbl__th" colSpan="3" style={{ textAlign: "center", borderBottom: "1px solid var(--border)" }}>Deductibles</th>
+            </tr>
+            <tr>
+              <th className="prop-tbl__th">ToI</th>
+              <th className="prop-tbl__th">Occ</th>
+              <th className="prop-tbl__th">Max</th>
+              <th className="prop-tbl__th">Agg</th>
+              <th className="prop-tbl__th">ToI</th>
+              <th className="prop-tbl__th">Value</th>
+              <th className="prop-tbl__th">PoL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="prop-tbl__row">
+              <td className="prop-tbl__td prop-tbl__td--name">{state.contract.program}</td>
+              <td className="prop-tbl__td"><span className="prop-badge">{state.contract.toi}</span></td>
+              <td className="prop-tbl__td">{fmtNum(state.contract.occ)}</td>
+              <td className="prop-tbl__td">{state.contract.max}</td>
+              <td className="prop-tbl__td">{fmtNum(state.contract.agg)}</td>
+              <td className="prop-tbl__td"><span className="prop-badge">{state.contract.dedToi}</span></td>
+              <td className="prop-tbl__td">{fmtNum(state.contract.dedValue)}</td>
+              <td className="prop-tbl__td">{state.contract.pol ? "✓" : "✕"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Coverages Limits and Deductibles */}
+      <div className="prop-section" style={{ marginTop: 32 }}>
+        <h2 className="prop-section__title">Coverages Limits and Deductibles</h2>
+        <table className="prop-tbl">
+          <thead>
+            <tr>
+              <th className="prop-tbl__th" rowSpan="2">Coverages</th>
+              <th className="prop-tbl__th" colSpan="4" style={{ textAlign: "center", borderBottom: "1px solid var(--border)" }}>Limits</th>
+              <th className="prop-tbl__th" colSpan="2" style={{ textAlign: "center", borderBottom: "1px solid var(--border)" }}>Deductibles</th>
+              <th className="prop-tbl__th" rowSpan="2"></th>
+            </tr>
+            <tr>
+              <th className="prop-tbl__th">ToI</th>
+              <th className="prop-tbl__th">Occ</th>
+              <th className="prop-tbl__th">Max</th>
+              <th className="prop-tbl__th">Agg</th>
+              <th className="prop-tbl__th">ToI</th>
+              <th className="prop-tbl__th">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.coverages.map(cov => (
+              <tr key={cov.id} className="prop-tbl__row">
+                <td className="prop-tbl__td prop-tbl__td--name">{cov.name}</td>
+                <td className="prop-tbl__td"><span className="prop-badge">{cov.toi}</span></td>
+                <td className="prop-tbl__td">{fmtNum(cov.occ)}</td>
+                <td className="prop-tbl__td">{cov.max}</td>
+                <td className="prop-tbl__td">{fmtNum(cov.agg)}</td>
+                <td className="prop-tbl__td"><span className="prop-badge">{cov.dedToi}</span></td>
+                <td className="prop-tbl__td">{fmtNum(cov.dedValue)}</td>
+                <td className="prop-tbl__td" style={{ whiteSpace: "nowrap" }}>
+                  <button className="liab-action-btn" title="Edit">
+                    <i className="fa-solid fa-pen" />
+                  </button>
+                  <button className="liab-action-btn liab-action-btn--danger" title="Delete"
+                    onClick={() => removeCoverage(cov.id)}>
+                    <i className="fa-solid fa-trash" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {!showAdd ? (
+          <button className="liab-add-btn" onClick={() => setShowAdd(true)}>
+            <i className="fa-solid fa-plus" /> Create a new coverage
+          </button>
+        ) : (
+          <div className="liab-add-row">
+            <input className="prop-input" style={{ width: 220 }} placeholder="Coverage name"
+              value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && newName.trim()) { addCoverage(newName.trim()); setNewName(""); setShowAdd(false); } }} />
+            <button className="liab-add-row__save" onClick={() => { if (newName.trim()) { addCoverage(newName.trim()); setNewName(""); setShowAdd(false); } }}>Add</button>
+            <button className="liab-add-row__cancel" onClick={() => { setShowAdd(false); setNewName(""); }}>Cancel</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
