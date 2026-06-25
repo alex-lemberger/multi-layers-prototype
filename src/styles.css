@@ -473,22 +473,22 @@ body {
 /* ========= TABLES (grid-tbl floating rows) ========= */
 .grid-tbl {
   width: 100%; border-collapse: separate; border-spacing: 0 4px;
-  background: transparent; table-layout: fixed;
+  background: transparent; table-layout: auto;
 }
 .grid-tbl thead th {
   background: var(--bg-sunk);
-  font-size: 13px; font-weight: 600; color: var(--fg);
+  font-size: 12px; font-weight: 600; color: var(--fg);
   text-align: left;
-  padding: 12px 16px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
 }
 .grid-tbl tbody td {
-  padding: 14px 16px;
+  padding: 10px 10px;
   background: var(--bg-elev);
   border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
   vertical-align: middle;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--fg);
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
@@ -1482,9 +1482,9 @@ body {
   cursor: pointer; font-family: var(--font-sans);
   transition: all 0.15s;
 }
-.lct-pagination__page:hover { background: var(--bg-sunk); color: var(--fg); }
+.lct-pagination__page:hover:not(.lct-pagination__page--active) { background: var(--bg-sunk); color: var(--fg); }
 .lct-pagination__page--active {
   background: var(--accent); color: #fff; border-color: var(--accent);
   font-weight: 600;
 }
-.lct-pagination__page--active:hover { background: var(--accent); }
+.lct-pagination__page--active:hover { background: var(--accent); color: #fff; }
