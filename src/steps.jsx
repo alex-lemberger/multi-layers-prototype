@@ -918,6 +918,8 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [coverageTree, setCoverageTree] = useS(null);
   const [collapsed, setCollapsed] = useS({});
   const [showSelectedOnly, setShowSelectedOnly] = useS(false);
+  const [page, setPage] = useS(0);
+  const PAGE_SIZE = 4;
 
   // Load coverage.json once
   useE(() => {
@@ -927,7 +929,19 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
       .catch(() => setCoverageTree([]));
   }, []);
 
-  if (!coverageTree) return <div className="main__title">Layered Coverage</div>;
+  // Pagination — must be before early return (hooks rules)
+  const totalPages = Math.ceil(layers.length / PAGE_SIZE);
+  useE(() => {
+    if (page >= totalPages && totalPages > 0) setPage(totalPages - 1);
+  }, [layers.length]);
+
+  // Auto-jump to page containing the active layer
+  useE(() => {
+    const targetPage = Math.floor(activeLayerIdx / PAGE_SIZE);
+    if (targetPage !== page) setPage(targetPage);
+  }, [activeLayerIdx]);
+
+  if (!coverageTree) return <div className="main__title">Coverage (Cyber)</div>;
 
   const toggleCollapse = (kindId) => {
     setCollapsed(c => ({ ...c, [kindId]: !c[kindId] }));
@@ -992,9 +1006,14 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
 
   const flatRows = flattenRows(coverageTree, 0);
 
+  // Pagination slicing
+  const pageStart = page * PAGE_SIZE;
+  const visibleLayers = layers.slice(pageStart, pageStart + PAGE_SIZE);
+  const visibleLayerIndices = visibleLayers.map((_, i) => pageStart + i);
+
   return (
     <div>
-      <div className="main__title">Layered Coverage</div>
+      <div className="main__title">Coverage (Cyber)</div>
       <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
         Coverage tree spread across layers. Each column shows how a coverage is distributed in the layer program.
       </p>
@@ -1009,6 +1028,33 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
             <span className="ct-radio__dot" /> Selected only
           </label>
         </div>
+
+        {/* Pagination — only show if more than PAGE_SIZE layers */}
+        {layers.length > PAGE_SIZE && (
+          <div className="lct-pagination">
+            <span className="lct-pagination__label">Layers:</span>
+            <button className="lct-pagination__btn" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+              <i className="fa-solid fa-chevron-left" />
+            </button>
+            {Array.from({ length: totalPages }, (_, pi) => {
+              const start = pi * PAGE_SIZE;
+              const end = Math.min(start + PAGE_SIZE, layers.length) - 1;
+              const firstName = layers[start].name;
+              const lastName = layers[end].name;
+              return (
+                <button key={pi}
+                  className={"lct-pagination__page" + (pi === page ? " lct-pagination__page--active" : "")}
+                  onClick={() => setPage(pi)}
+                  title={firstName + " – " + lastName}>
+                  {firstName} – {lastName}
+                </button>
+              );
+            })}
+            <button className="lct-pagination__btn" disabled={page === totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              <i className="fa-solid fa-chevron-right" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tree × Layers matrix */}
@@ -1017,15 +1063,19 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
           <thead>
             <tr>
               <th className="lct-th lct-th--name">Coverage</th>
-              {layers.map((l, li) => (
-                <th key={li} className={`lct-th lct-th--layer${li === activeLayerIdx ? " lct-th--active" : ""}`}>
-                  <div className="lct-layer-head">
-                    <span className={`ls-type-badge ls-type-badge--${l.type.toLowerCase()}`} style={{ fontSize: 9, padding: "1px 6px" }}>{l.type}</span>
-                    <span className="lct-layer-head__name">{l.name}</span>
-                    <span className="lct-layer-head__range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
-                  </div>
-                </th>
-              ))}
+              {visibleLayers.map((l, vi) => {
+                const li = visibleLayerIndices[vi];
+                return (
+                  <th key={li} className={`lct-th lct-th--layer${li === activeLayerIdx ? " lct-th--active" : ""}`}
+                    onClick={() => onLayerChange(li)} style={{ cursor: "pointer" }}>
+                    <div className="lct-layer-head">
+                      <span className={`ls-type-badge ls-type-badge--${l.type.toLowerCase()}`} style={{ fontSize: 9, padding: "1px 6px" }}>{l.type}</span>
+                      <span className="lct-layer-head__name">{l.name}</span>
+                      <span className="lct-layer-head__range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -1038,7 +1088,6 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
                   {/* Coverage name column — tree structure */}
                   <td className="lct-cell lct-cell--name" style={{ paddingLeft: 14 + depth * 28 }}>
                     <div className="lct-name-inner">
-                      {/* Collapse chevron */}
                       {hasChildren ? (
                         <button className="ct-chevron" onClick={() => toggleCollapse(kindId)}>
                           <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
@@ -1046,17 +1095,16 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
                       ) : (
                         depth > 0 ? <span className="lct-tree-spacer" /> : null
                       )}
-                      {/* Checkbox */}
                       <span className={`ct-check${isSelected ? " ct-check--on" : ""}`}>
                         {isSelected && <i className="fa-solid fa-check" style={{ fontSize: 10, color: "#fff" }} />}
                       </span>
-                      {/* Name */}
                       <span className="lct-name-text">{cov.coverageName}</span>
                     </div>
                   </td>
 
-                  {/* One cell per layer */}
-                  {layers.map((l, li) => {
+                  {/* One cell per visible layer */}
+                  {visibleLayers.map((l, vi) => {
+                    const li = visibleLayerIndices[vi];
                     const info = getLayerCoverageInfo(cov, l, li);
                     const isActiveLayer = li === activeLayerIdx;
 
@@ -1076,9 +1124,7 @@ function LayeredCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
                       );
                     }
 
-                    // Included — show limit/ded values
                     if (info.inherited) {
-                      // Inherited from parent — just show a check
                       return (
                         <td key={li} className={`lct-cell lct-cell--layer lct-cell--included${isActiveLayer ? " lct-cell--highlight" : ""}`}>
                           <span className="lct-inherited"><i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--accent)" }} /></span>
