@@ -257,25 +257,58 @@ body {
 .layer-item--active .layer-item__name { font-weight: 600; }
 .layer-item__range { font-size: 12px; color: var(--fg-muted); margin-top: 2px; font-family: var(--font-mono); }
 
-/* Nav items (CaTa sidenav style — left-border active, no colored dots) */
+/* Nav items (stepper style — open circles, connecting line, full-width active) */
+.nav-stepper {
+  position: relative;
+  margin: 0 -16px; /* bleed into section padding for full-width highlights */
+  padding: 0 16px;
+}
+/* Continuous vertical line behind all dots */
+.nav-stepper::before {
+  content: "";
+  position: absolute;
+  top: 26px;
+  bottom: 26px;
+  left: 40px; /* 16px padding + 3px border + 12px item-padding + 9px half-dot */
+  width: 1px;
+  background: var(--border);
+}
+
 .nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  cursor: pointer; margin-bottom: 2px; transition: background 0.15s;
+  padding: 8px 12px; border-radius: 0;
+  cursor: pointer; margin-bottom: 0; transition: background 0.15s;
   border-left: 3px solid transparent;
+  position: relative;
 }
 .nav-item:hover { background: var(--bg-sunk); }
 .nav-item--active {
   border-left-color: var(--accent);
-  background: var(--accent-soft);
+  background: var(--bg-sunk);
 }
+
+/* Stepper dot — open circle with white bg to mask the line */
 .nav-item__dot {
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 18px; height: 18px; border-radius: 50%;
   border: 1.5px solid var(--border-strong);
-  background: transparent; flex-shrink: 0;
+  background: #fff; flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  display: flex; align-items: center; justify-content: center;
 }
-.nav-item__dot--done { background: var(--accent); border-color: var(--accent); }
-.nav-item__dot--error { background: var(--red); border-color: var(--red); }
+/* Green check for done */
+.nav-item__dot--done {
+  background: var(--accent); border-color: var(--accent);
+}
+.nav-item__dot--done::after {
+  content: "\f00c";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 9px;
+  color: #fff;
+}
+/* Red error state — removed, not used in CI/CD */
+
 .nav-item__label { font-size: 14px; color: #575757; font-weight: 400; }
 .nav-item--active .nav-item__label { color: var(--fg); font-weight: 600; }
 .nav-item__icon { font-size: 14px; color: #575757; width: 20px; text-align: center; }
@@ -290,16 +323,18 @@ body {
 .nav-item--parent-active { background: var(--bg-sunk); }
 .nav-item--parent-active .nav-item__label { font-weight: 600; color: var(--fg); }
 
-/* Sub-navigation (children) */
-.nav-children { padding-left: 20px; margin-bottom: 4px; }
+/* Sub-navigation (children) — no dots, indented text, full-width active bg */
+.nav-children { margin-bottom: 0; }
 .nav-item--child {
-  padding: 6px 12px; font-size: 13px; border-left: 2px solid var(--border);
-  margin-left: 12px;
+  padding: 6px 12px 6px 46px; /* indented past the dot+icon area */
+  font-size: 13px;
+  border-left: 3px solid transparent;
+  margin-left: 0; border-radius: 0;
 }
-.nav-item--child .nav-item__icon { font-size: 12px; width: 16px; }
-.nav-item--child .nav-item__label { font-size: 13px; }
+.nav-item--child .nav-item__icon { font-size: 14px; width: 20px; }
+.nav-item--child .nav-item__label { font-size: 14px; }
 .nav-item--child.nav-item--active {
-  border-left-color: var(--accent); background: var(--accent-soft);
+  border-left-color: var(--accent); background: var(--bg-sunk);
 }
 
 /* -- Main content -- */

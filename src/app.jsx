@@ -151,7 +151,7 @@ const NAV_ITEMS_A = [
     { id: "layers-settings",    label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "layered-coverage",   label: "Layered Coverage",    icon: "fa-solid fa-table-cells" },
   ]},
-  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "error" },
+  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
   { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
   { id: "loadings",           label: "Loadings / Discounts",icon: "fa-solid fa-tag",           status: "" },
@@ -163,7 +163,7 @@ const NAV_ITEMS_A = [
 const NAV_ITEMS_B = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
-  { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "error", children: [
+  { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",             label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "layered-coverage",   label: "Layered Coverage",    icon: "fa-solid fa-table-cells" },
   ]},
@@ -582,7 +582,8 @@ function App() {
             <div className="sidebar__section-header">
               <span className="sidebar__section-label">Navigation</span>
             </div>
-            {NAV_ITEMS.map(item => (
+            <div className="nav-stepper">
+            {NAV_ITEMS.map((item, idx) => (
               <React.Fragment key={item.id + (item.children ? '-parent' : '')}>
                 <div
                   className={"nav-item" +
@@ -591,20 +592,18 @@ function App() {
                   }
                   onClick={() => setActiveNav(item.children ? item.children[0].id : item.id)}>
                   <span className={"nav-item__dot" +
-                    (item.status === "done" ? " nav-item__dot--done" : "") +
-                    (item.status === "error" ? " nav-item__dot--error" : "")} />
+                    (item.status === "done" ? " nav-item__dot--done" : "")} />
                   <i className={item.icon + " nav-item__icon"} />
                   <span className="nav-item__label">{item.label}</span>
-                  {item.children && layers.length > 1 && (
-                    <i className="fa-solid fa-chevron-down nav-item__expand" />
-                  )}
                 </div>
                 {/* Sub-navigation items (visible when layers exist) */}
                 {item.children && layers.length > 1 && (
                   <div className="nav-children">
                     {item.children.map(child => (
                       <div key={child.id}
-                        className={"nav-item nav-item--child" + (child.id === activeNav ? " nav-item--active" : "")}
+                        className={"nav-item nav-item--child" +
+                          (child.id === activeNav ? " nav-item--active" : "")
+                        }
                         onClick={() => setActiveNav(child.id)}>
                         <i className={child.icon + " nav-item__icon"} />
                         <span className="nav-item__label">{child.label}</span>
@@ -614,6 +613,7 @@ function App() {
                 )}
               </React.Fragment>
             ))}
+            </div>
           </div>
 
           <hr className="sidebar__divider" />
