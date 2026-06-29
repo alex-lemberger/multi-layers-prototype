@@ -1560,6 +1560,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
+  const [inheritToExcess, setInheritToExcess] = useS(false);
   const { getAssignment, setExcluded, setFields } = useSpreadingState();
   const parentMapRef = React.useRef({});
 
@@ -1676,6 +1677,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
     });
     setPanelTarget({ layerIdx: li });
+    setInheritToExcess(false);
   };
 
   // Save panel: write draft back to assignments
@@ -1683,7 +1685,25 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     if (!panelTarget || !selectedCov) return;
     const li = panelTarget.layerIdx;
     const key = selectedCov.coverageKindId + "_" + li;
-    _spreadingAssignments[key] = { ..._spreadingAssignments[key], ...panelDraft };
+    const fieldsToPush = {
+      sublimit: panelDraft.sublimit,
+      sharedSublimit: panelDraft.sharedSublimit,
+      deductible: panelDraft.deductible,
+      retroDateYears: panelDraft.retroDateYears,
+      indemnityPeriodValue: panelDraft.indemnityPeriodValue,
+      indemnityPeriodUnit: panelDraft.indemnityPeriodUnit,
+      waitingPeriodValue: panelDraft.waitingPeriodValue,
+      waitingPeriodUnit: panelDraft.waitingPeriodUnit,
+    };
+    _spreadingAssignments[key] = { ..._spreadingAssignments[key], ...fieldsToPush };
+    // Inherit to all excess layers if toggled (overwrite their field values, preserve excluded state)
+    if (inheritToExcess && li === 0) {
+      layers.forEach((_, excessLi) => {
+        if (excessLi === 0) return;
+        const excessKey = selectedCov.coverageKindId + "_" + excessLi;
+        _spreadingAssignments[excessKey] = { ...(_spreadingAssignments[excessKey] || {}), ...fieldsToPush };
+      });
+    }
     _saveSpreadingToLS();
     _spreadingListeners.forEach(fn => fn());
     setPanelTarget(null);
@@ -1899,6 +1919,18 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             </div>
 
             <div className="cst-panel__body">
+              {/* Inherit toggle — primary layer only */}
+              {panelTarget?.layerIdx === 0 && (
+                <div
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0 12px", marginBottom: 8, borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+                  onClick={() => setInheritToExcess(v => !v)}
+                >
+                  <span style={{ fontSize: 13, color: "var(--fg)" }}>Apply values to all excess layers on save</span>
+                  <div className={`ls-toggle${inheritToExcess ? " ls-toggle--on" : ""}`}>
+                    <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                  </div>
+                </div>
+              )}
               {/* 1. Sublimit (agg) */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Sublimit (agg)</span>
