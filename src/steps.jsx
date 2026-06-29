@@ -1802,7 +1802,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
                   const handleBlockClick = () => {
                     if (isLocked) return;
-                    if (isExcluded) { setExcluded(selectedCov.coverageKindId, li, false); return; }
                     openPanel(li);
                   };
 
@@ -1832,7 +1831,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
                         {/* Panel mode: edit / restore hint icon (not on locked) */}
                         {!isLocked && (
-                          <span style={{ marginLeft: "auto", fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)" }}>
+                          <span style={{ fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)", flexShrink: 0 }}>
                             {isExcluded
                               ? <i className="fa-solid fa-rotate-left" />
                               : <i className="fa-solid fa-pencil" />
@@ -1843,20 +1842,20 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
                       {/* Panel: read-only value summary for included non-locked blocks */}
                       {!isExcluded && !isLocked && (
-                        <div className="cst-block-val-row" style={{ marginTop: 6 }}>
-                          {assignment.sublimit && <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{fmtEUR(Number(assignment.sublimit))}</span></span>}
-                          {assignment.deductible && <span><span className="cst-val-label">Ded </span><span className="cst-val-num">{fmtEUR(Number(assignment.deductible))}</span></span>}
-                          {assignment.retroDateYears && <span><span className="cst-val-label">Retro </span><span className="cst-val-num">{assignment.retroDateYears}y</span></span>}
-                          {!assignment.sublimit && !assignment.deductible && !assignment.retroDateYears && (
-                            <span style={{ fontSize: 12, color: "var(--fg-faint)" }}>No limits configured — click to edit</span>
-                          )}
+                        <div className="cst-block-val-row" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
+                          <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{assignment.sublimit ? fmtEUR(Number(assignment.sublimit)) : "—"}</span></span>
+                          <span><span className="cst-val-label">Shared Sublimit </span><span className="cst-val-num">{assignment.sharedSublimit ? fmtEUR(Number(assignment.sharedSublimit)) : "—"}</span></span>
+                          <span><span className="cst-val-label">Deductible </span><span className="cst-val-num">{assignment.deductible ? fmtEUR(Number(assignment.deductible)) : "—"}</span></span>
+                          <span><span className="cst-val-label">Retro Cover </span><span className="cst-val-num">{assignment.retroDateYears ? `${assignment.retroDateYears}y` : "—"}</span></span>
+                          <span><span className="cst-val-label">Indemnity </span><span className="cst-val-num">{assignment.indemnityPeriodValue ? `${assignment.indemnityPeriodValue} ${assignment.indemnityPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
+                          <span><span className="cst-val-label">Waiting </span><span className="cst-val-num">{assignment.waitingPeriodValue ? `${assignment.waitingPeriodValue} ${assignment.waitingPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
                         </div>
                       )}
 
                       {/* Status text for excluded and locked blocks */}
                       {isExcluded && !isLocked && (
                         <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
-                          Excluded — click to restore
+                          Excluded — click to configure
                         </span>
                       )}
                       {isLocked && (
@@ -1877,7 +1876,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   Locked by cascade
                 </span>
                 <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
-                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click included block to edit · Click excluded to restore
+                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click any block to open panel
                 </span>
               </div>
             </>
@@ -1976,18 +1975,28 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
             <div className="cst-panel__footer">
               <button className="btn btn--primary" onClick={savePanel}>Save</button>
-              {panelTarget && layers[panelTarget.layerIdx]?.type !== "Primary" && (
-                <button
-                  className="btn btn--outline"
-                  style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }}
-                  onClick={() => {
-                    setExcluded(selectedCov.coverageKindId, panelTarget.layerIdx, true);
-                    setPanelTarget(null);
-                  }}
-                >
-                  Exclude from layer
-                </button>
-              )}
+              {panelTarget && layers[panelTarget.layerIdx]?.type !== "Primary" && (() => {
+                const li = panelTarget.layerIdx;
+                const a = getAssignment(selectedCov?.coverageKindId, li) || {};
+                return a.excluded
+                  ? (
+                    <button
+                      className="btn btn--outline"
+                      style={{ color: "var(--hdi-universal-green, #65a518)", borderColor: "var(--hdi-universal-green, #65a518)" }}
+                      onClick={() => { setExcluded(selectedCov.coverageKindId, li, false); setPanelTarget(null); }}
+                    >
+                      Restore to layer
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn--outline"
+                      style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }}
+                      onClick={() => { setExcluded(selectedCov.coverageKindId, li, true); setPanelTarget(null); }}
+                    >
+                      Exclude from layer
+                    </button>
+                  );
+              })()}
               <button className="btn btn--outline" onClick={() => setPanelTarget(null)}>Cancel</button>
             </div>
           </div>

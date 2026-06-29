@@ -1389,7 +1389,7 @@ body {
 
 /* Left: tree panel */
 .cst-tree-panel {
-  flex: 0 0 60%;
+  flex: 0 0 40%;
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1456,7 +1456,7 @@ body {
 
 /* Right: tower panel */
 .cst-tower-panel {
-  flex: 0 0 40%;
+  flex: 0 0 60%;
   min-width: 0;
 }
 
@@ -1534,6 +1534,9 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
 }
 
 .cst-block-name {
