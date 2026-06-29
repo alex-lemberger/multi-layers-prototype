@@ -1505,6 +1505,453 @@ function useLiabState(layers, activeLayerIdx) {
   return { state, updateContract, updateCoverage, addCoverage, removeCoverage };
 }
 
+// ---- Coverage Spreading Screen — tree + tower ----
+// Left: full coverage tree (select a coverage); shows per-row assignment badge
+// Right: vertical tower (Primary at bottom, Excess stacked above)
+//        each block is interactive: toggle include/exclude + edit limits inline
+//
+// Assignment state lives in a module-level map keyed by coverageKindId × layerIdx
+// so it persists while navigating away and back within the same session.
+const _spreadingAssignments = (() => {
+  try {
+    const raw = localStorage.getItem("ml_spreading_v1");
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+})();
+let _spreadingListeners = [];
+
+function _saveSpreadingToLS() {
+  try { localStorage.setItem("ml_spreading_v1", JSON.stringify(_spreadingAssignments)); } catch {}
+}
+
+function useSpreadingState() {
+  const [, forceUpdate] = useS(0);
+  useE(() => {
+    const fn = () => forceUpdate(n => n + 1);
+    _spreadingListeners.push(fn);
+    return () => { _spreadingListeners = _spreadingListeners.filter(f => f !== fn); };
+  }, []);
+  const notify = () => _spreadingListeners.forEach(fn => fn());
+
+  const getAssignment = (kindId, layerIdx) =>
+    _spreadingAssignments[kindId + "_" + layerIdx] || null;
+
+  const setIncluded = (kindId, layerIdx, included) => {
+    const key = kindId + "_" + layerIdx;
+    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || {}), included };
+    _saveSpreadingToLS();
+    notify();
+  };
+
+  const setField = (kindId, layerIdx, field, value) => {
+    const key = kindId + "_" + layerIdx;
+    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || { included: true }), [field]: value };
+    _saveSpreadingToLS();
+    notify();
+  };
+
+  return { getAssignment, setIncluded, setField };
+}
+
+function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const [collapsed, setCollapsed] = useS({});
+  const [selectedKindId, setSelectedKindId] = useS(null);
+  const [selectedCov, setSelectedCov] = useS(null);
+  const [filter, setFilter] = useS("");
+  const [editMode, setEditMode] = useS("inline"); // "inline" | "panel"
+  const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
+  // Draft state for the open panel
+  const [panelDraft, setPanelDraft] = useS({});
+  const { getAssignment, setIncluded, setField } = useSpreadingState();
+
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => {
+        setCoverageTree(data);
+        data.forEach(root => seedAssignments(root));
+        const first = findFirstSelected(data);
+        if (first) { setSelectedKindId(first.coverageKindId); setSelectedCov(first); }
+      })
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  function seedAssignments(cov) {
+    layers.forEach((layer, li) => {
+      const key = cov.coverageKindId + "_" + li;
+      if (_spreadingAssignments[key] !== undefined) return; // already set (from LS or prior seed)
+      const match = (layer.coverages || []).find(c =>
+        cov.coverageName.includes(c.name) || c.name.includes(cov.coverageName) ||
+        cov.coverageName.replace(/[&(),]/g, "").trim().includes(c.name.replace(/[&(),]/g, "").trim())
+      );
+      if (match) {
+        _spreadingAssignments[key] = {
+          included: match.included,
+          limitOcc: match.limitOcc != null ? String(match.limitOcc) : "",
+          limitAgg: match.limitAgg != null ? String(match.limitAgg) : "",
+          deductible: match.deductible != null ? String(match.deductible) : "",
+        };
+      } else {
+        _spreadingAssignments[key] = { included: cov.selected, limitOcc: "", limitAgg: "", deductible: "" };
+      }
+    });
+    (cov.children || []).forEach(child => seedAssignments(child));
+  }
+
+  function findFirstSelected(items) {
+    for (const item of items) {
+      if (item.selected) return item;
+      if (item.children) { const f = findFirstSelected(item.children); if (f) return f; }
+    }
+    return null;
+  }
+
+  const flattenTree = (items, depth) => {
+    const rows = [];
+    items.forEach(cov => {
+      const hasChildren = cov.children && cov.children.length > 0;
+      const matchesFilter = !filter || cov.coverageName.toLowerCase().includes(filter.toLowerCase());
+      const descendantMatches = hasChildren && hasDescendantMatch(cov, filter);
+      if (filter && !matchesFilter && !descendantMatches) return;
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId] });
+      if (hasChildren && !collapsed[cov.coverageKindId]) {
+        rows.push(...flattenTree(cov.children, depth + 1));
+      }
+    });
+    return rows;
+  };
+
+  function hasDescendantMatch(cov, f) {
+    if (!f || !cov.children) return false;
+    return cov.children.some(c => c.coverageName.toLowerCase().includes(f.toLowerCase()) || hasDescendantMatch(c, f));
+  }
+
+  const countIncluded = (kindId) =>
+    layers.filter((_, li) => getAssignment(kindId, li)?.included).length;
+
+  const toggle = (kindId, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [kindId]: !c[kindId] })); };
+  const selectCov = (cov) => { setSelectedKindId(cov.coverageKindId); setSelectedCov(cov); setPanelTarget(null); };
+
+  // Open panel: copy current assignment into draft
+  const openPanel = (li) => {
+    const a = getAssignment(selectedCov.coverageKindId, li) || {};
+    setPanelDraft({ included: !!a.included, limitOcc: a.limitOcc || "", limitAgg: a.limitAgg || "", deductible: a.deductible || "" });
+    setPanelTarget({ layerIdx: li });
+  };
+
+  // Save panel: write draft back to assignments
+  const savePanel = () => {
+    if (!panelTarget || !selectedCov) return;
+    const li = panelTarget.layerIdx;
+    const key = selectedCov.coverageKindId + "_" + li;
+    _spreadingAssignments[key] = { ...panelDraft };
+    _saveSpreadingToLS();
+    _spreadingListeners.forEach(fn => fn());
+    setPanelTarget(null);
+  };
+
+  const treeRows = coverageTree ? flattenTree(coverageTree, 0) : [];
+
+  const totalRange = layers.reduce((s, l) => s + Math.max(0, (l.rangeTo || 0) - (l.rangeFrom || 0)), 0);
+  const MIN_HEIGHT_PX = 88;
+  const TOWER_HEIGHT_PX = Math.max(460, layers.length * 120);
+
+  const includedCount = selectedCov
+    ? layers.filter((_, li) => getAssignment(selectedCov.coverageKindId, li)?.included).length
+    : 0;
+
+  if (!coverageTree) return <div className="main__title">Coverage Spreading (Cyber)</div>;
+
+  const panelLayer = panelTarget != null ? layers[panelTarget.layerIdx] : null;
+
+  return (
+    <div>
+      <div className="main__title">Coverage Spreading (Cyber)</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Select a coverage on the left, then assign it to layers and configure limits on the right.
+      </p>
+
+      <div className="cst-layout">
+        {/* ---- LEFT: Coverage tree ---- */}
+        <div className="cst-tree-panel">
+          <div className="cst-tree-header">
+            <span className="cst-tree-header__title">Coverages</span>
+            <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
+              <i className="fa-solid fa-magnifying-glass" />
+              <input
+                type="text" placeholder="Filter…"
+                value={filter} onChange={e => setFilter(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="cst-tree-scroll">
+            {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => {
+              const included = countIncluded(cov.coverageKindId);
+              const isSelected = cov.coverageKindId === selectedKindId;
+              return (
+                <div
+                  key={cov.coverageKindId}
+                  className={`cst-tree-row${cov.selected ? " cst-tree-row--checked" : ""}${isSelected ? " cst-tree-row--selected" : ""}`}
+                  style={{ paddingLeft: 12 + depth * 22 }}
+                  onClick={() => selectCov(cov)}
+                >
+                  {hasChildren ? (
+                    <button className="ct-chevron" style={{ flexShrink: 0 }} onClick={e => toggle(cov.coverageKindId, e)}>
+                      <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                    </button>
+                  ) : (
+                    <span style={{ width: 20, flexShrink: 0 }} />
+                  )}
+                  <span className={`ct-check${cov.selected ? " ct-check--on" : ""}`} style={{ flexShrink: 0 }}>
+                    {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
+                  </span>
+                  <span className="cst-tree-row__label">{cov.coverageName}</span>
+                  {included > 0 && (
+                    <span className={`cst-layer-count ${included === layers.length ? "cst-layer-count--full" : "cst-layer-count--partial"}`}>
+                      {included}/{layers.length}
+                    </span>
+                  )}
+                  {isSelected && <i className="fa-solid fa-chevron-right cst-tree-row__arrow" style={{ marginLeft: included > 0 ? 6 : "auto" }} />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ---- RIGHT: Tower ---- */}
+        <div className="cst-tower-panel">
+          {!selectedCov ? (
+            <div className="cst-tower-empty">
+              <i className="fa-solid fa-layer-group" style={{ fontSize: 32, color: "var(--fg-faint)" }} />
+              <span>Select a coverage on the left to assign it to layers</span>
+            </div>
+          ) : (
+            <>
+              {/* Header: coverage title + stats + mode toggle */}
+              <div className="cst-tower-header">
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
+                  <span className="cst-tower-header__stats">
+                    {includedCount} of {layers.length} {includedCount === 1 ? "layer" : "layers"} included
+                  </span>
+                </div>
+                {/* Mode toggle */}
+                <div className="cst-mode-toggle">
+                  <button
+                    className={`cst-mode-btn${editMode === "inline" ? " cst-mode-btn--active" : ""}`}
+                    onClick={() => { setEditMode("inline"); setPanelTarget(null); }}
+                  >
+                    <i className="fa-solid fa-pen-to-square" style={{ fontSize: 11 }} /> Inline
+                  </button>
+                  <button
+                    className={`cst-mode-btn${editMode === "panel" ? " cst-mode-btn--active" : ""}`}
+                    onClick={() => { setEditMode("panel"); setPanelTarget(null); }}
+                  >
+                    <i className="fa-solid fa-table-columns" style={{ fontSize: 11 }} /> Edit Panel
+                  </button>
+                </div>
+              </div>
+
+              {/* Tower */}
+              <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
+                {layers.map((layer, li) => {
+                  const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
+                  const included = !!assignment.included;
+                  const rangeSize = Math.max(0, (layer.rangeTo || 0) - (layer.rangeFrom || 0));
+                  const heightFraction = totalRange > 0 ? rangeSize / totalRange : 1 / layers.length;
+                  const blockHeight = Math.max(MIN_HEIGHT_PX, Math.round(heightFraction * TOWER_HEIGHT_PX));
+                  const isActive = li === activeLayerIdx;
+                  const isPanelOpen = panelTarget?.layerIdx === li;
+
+                  let blockClass = "cst-layer-block";
+                  blockClass += included ? " cst-layer-block--included" : " cst-layer-block--excluded";
+                  if (isActive) blockClass += " cst-layer-block--active";
+                  if (editMode === "panel") blockClass += " cst-layer-block--readonly";
+
+                  return (
+                    <div
+                      key={layer.id}
+                      className={blockClass}
+                      style={{
+                        minHeight: blockHeight,
+                        outline: isPanelOpen ? "2px solid var(--accent)" : undefined,
+                      }}
+                      onClick={editMode === "panel" ? () => openPanel(li) : undefined}
+                    >
+                      <div className="cst-block-head">
+                        <span
+                          className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}
+                          style={{ fontSize: 10, padding: "2px 7px", cursor: "pointer" }}
+                          onClick={e => { e.stopPropagation(); onLayerChange(li); }}
+                        >
+                          {layer.type || "Excess"}
+                        </span>
+                        <span
+                          className="cst-block-name"
+                          style={{ cursor: "pointer" }}
+                          onClick={e => { e.stopPropagation(); onLayerChange(li); }}
+                        >
+                          {layer.name}
+                        </span>
+                        <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
+
+                        {/* Inline mode: include/exclude button */}
+                        {editMode === "inline" && (
+                          <button
+                            className={`cst-assign-btn ${included ? "cst-assign-btn--exclude" : "cst-assign-btn--off"}`}
+                            onClick={e => { e.stopPropagation(); setIncluded(selectedCov.coverageKindId, li, !included); }}
+                          >
+                            {included
+                              ? <><i className="fa-regular fa-circle-xmark" style={{ fontSize: 11 }} /> Exclude</>
+                              : <><i className="fa-solid fa-plus" style={{ fontSize: 10 }} /> Include</>
+                            }
+                          </button>
+                        )}
+
+                        {/* Panel mode: edit icon hint */}
+                        {editMode === "panel" && (
+                          <span style={{ marginLeft: "auto", fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)" }}>
+                            <i className="fa-solid fa-pencil" />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Inline mode: editable inputs */}
+                      {editMode === "inline" && included && (
+                        <div className="cst-block-inputs">
+                          <div className="cst-input-group">
+                            <span className="cst-input-label">Limit</span>
+                            <input className="cst-input" placeholder="e.g. 1000000"
+                              value={assignment.limitOcc || ""}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => setField(selectedCov.coverageKindId, li, "limitOcc", e.target.value)} />
+                          </div>
+                          <div className="cst-input-group">
+                            <span className="cst-input-label">Agg</span>
+                            <input className="cst-input" placeholder="e.g. 5000000"
+                              value={assignment.limitAgg || ""}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => setField(selectedCov.coverageKindId, li, "limitAgg", e.target.value)} />
+                          </div>
+                          <div className="cst-input-group">
+                            <span className="cst-input-label">Ded</span>
+                            <input className="cst-input" placeholder="e.g. 50000"
+                              value={assignment.deductible || ""}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => setField(selectedCov.coverageKindId, li, "deductible", e.target.value)} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Panel mode: read-only value display */}
+                      {editMode === "panel" && included && (
+                        <div className="cst-block-val-row" style={{ marginTop: 6 }}>
+                          {assignment.limitOcc && <span><span className="cst-val-label">Limit </span><span className="cst-val-num">{fmtEUR(Number(assignment.limitOcc))}</span></span>}
+                          {assignment.limitAgg && <span><span className="cst-val-label">Agg </span><span className="cst-val-num">{fmtEUR(Number(assignment.limitAgg))}</span></span>}
+                          {assignment.deductible && <span><span className="cst-val-label">Ded </span><span className="cst-val-num">{fmtEUR(Number(assignment.deductible))}</span></span>}
+                          {!assignment.limitOcc && !assignment.limitAgg && !assignment.deductible && (
+                            <span style={{ fontSize: 12, color: "var(--fg-faint)" }}>No limits configured</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Panel mode: not-included state */}
+                      {editMode === "panel" && !included && (
+                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4 }}>
+                          Not included — click to configure
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="lc-legend" style={{ marginTop: 16 }}>
+                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included</span>
+                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Not included</span>
+                {editMode === "panel" && (
+                  <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
+                    <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click a block to open edit panel
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Edit Panel (panel mode only) ---- */}
+      {editMode === "panel" && panelTarget !== null && panelLayer && selectedCov && (
+        <div className="cst-panel-overlay" onClick={() => setPanelTarget(null)}>
+          <div className="cst-panel" onClick={e => e.stopPropagation()}>
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__layer">{panelLayer.name} · {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
+                <span className="cst-panel__cov">{selectedCov.coverageName}</span>
+              </div>
+              <button className="drawer__close" onClick={() => setPanelTarget(null)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="cst-panel__body">
+              {/* Include toggle */}
+              <div
+                className={`cst-panel__include-row${panelDraft.included ? " cst-panel__include-row--on" : ""}`}
+                style={{ cursor: "pointer" }}
+                onClick={() => setPanelDraft(d => ({ ...d, included: !d.included }))}
+              >
+                <span className="cst-panel__include-label">Include in this layer</span>
+                <div className={`ls-toggle${panelDraft.included ? " ls-toggle--on" : ""}`}>
+                  <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                </div>
+              </div>
+
+              {/* Limit fields — disabled when not included */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Limit (per occurrence)</span>
+                <input
+                  className="cst-panel-input"
+                  placeholder="e.g. 1,000,000"
+                  disabled={!panelDraft.included}
+                  value={panelDraft.limitOcc || ""}
+                  onChange={e => setPanelDraft(d => ({ ...d, limitOcc: e.target.value }))}
+                />
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Limit (aggregate)</span>
+                <input
+                  className="cst-panel-input"
+                  placeholder="e.g. 5,000,000"
+                  disabled={!panelDraft.included}
+                  value={panelDraft.limitAgg || ""}
+                  onChange={e => setPanelDraft(d => ({ ...d, limitAgg: e.target.value }))}
+                />
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Deductible</span>
+                <input
+                  className="cst-panel-input"
+                  placeholder="e.g. 50,000"
+                  disabled={!panelDraft.included}
+                  value={panelDraft.deductible || ""}
+                  onChange={e => setPanelDraft(d => ({ ...d, deductible: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={savePanel}>Save</button>
+              <button className="btn btn--outline" onClick={() => setPanelTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiabilityCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
   const { state, updateContract, updateCoverage, addCoverage, removeCoverage } = useLiabState(layers, activeLayerIdx);
   const activeLayer = layers[activeLayerIdx];

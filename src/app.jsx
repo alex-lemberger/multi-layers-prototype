@@ -148,11 +148,12 @@ function makeInitialLayers() {
 const NAV_ITEMS_A = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
-    { id: "layers-settings",    label: "Layer Structure",     icon: "fa-solid fa-table-list" },
-    { id: "layered-coverage",   label: "Coverage (Cyber)",    icon: "fa-solid fa-table-cells" },
-    { id: "prop-define",        label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
-    { id: "prop-limits",        label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
-    { id: "liability-coverage", label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
+    { id: "layers-settings",      label: "Layer Structure",     icon: "fa-solid fa-table-list" },
+    { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
+    { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
+    { id: "prop-define",          label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
+    { id: "prop-limits",          label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
+    { id: "liability-coverage",   label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
@@ -167,11 +168,12 @@ const NAV_ITEMS_B = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
-    { id: "layers",             label: "Layer Structure",     icon: "fa-solid fa-table-list" },
-    { id: "layered-coverage",   label: "Coverage (Cyber)",    icon: "fa-solid fa-table-cells" },
-    { id: "prop-define",        label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
-    { id: "prop-limits",        label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
-    { id: "liability-coverage", label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
+    { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
+    { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
+    { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
+    { id: "prop-define",          label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
+    { id: "prop-limits",          label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
+    { id: "liability-coverage",   label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
   { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
@@ -522,6 +524,7 @@ function App() {
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage-poc": return <LayeredCoveragePocScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-define":        return <PropDefineCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
