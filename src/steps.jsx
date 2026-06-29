@@ -2563,11 +2563,13 @@ function FinalDecisionScreen({ layers }) {
               </div>
 
               {/* Lead Insurer toggle */}
-              <div className="cst-panel__include-row" style={{ cursor: "pointer" }}
-                onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
-                <span className="cst-panel__include-label">Lead Insurer</span>
-                <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`}>
-                  <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+              <div className="cst-panel__field">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+                  onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
+                  <span className="cst-panel__field-label">Lead Insurer</span>
+                  <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`}>
+                    <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                  </div>
                 </div>
               </div>
 
