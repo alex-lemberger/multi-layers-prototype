@@ -2152,3 +2152,75 @@ function LiabilityCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
     </div>
   );
 }
+
+// ---- Final Decision Screen state ----
+const _fdDecisions = (() => {
+  try {
+    const raw = localStorage.getItem("ml_fd_v1");
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+})();
+let _fdFinalized = (() => {
+  try { return JSON.parse(localStorage.getItem("ml_fd_finalized_v1") || "false"); } catch { return false; }
+})();
+let _fdBindDate = (() => {
+  try { return localStorage.getItem("ml_fd_binddate_v1") || ""; } catch { return ""; }
+})();
+let _fdListeners = [];
+
+function _saveFdToLS() {
+  try {
+    localStorage.setItem("ml_fd_v1", JSON.stringify(_fdDecisions));
+    localStorage.setItem("ml_fd_finalized_v1", JSON.stringify(_fdFinalized));
+    localStorage.setItem("ml_fd_binddate_v1", _fdBindDate);
+  } catch {}
+}
+
+function seedFdDecisions(layers) {
+  layers.forEach((_, li) => {
+    if (_fdDecisions[li] !== undefined) return;
+    _fdDecisions[li] = {
+      decision: "offered",
+      typeOfParticipation: "100% direct business",
+      hdiSharePct: "100",
+      leadInsurer: true,
+      achievedPremium: "",
+      policyId: null,
+    };
+  });
+}
+
+function useFdState() {
+  const [, forceUpdate] = useS(0);
+  useE(() => {
+    const fn = () => forceUpdate(n => n + 1);
+    _fdListeners.push(fn);
+    return () => { _fdListeners = _fdListeners.filter(f => f !== fn); };
+  }, []);
+  const notify = () => _fdListeners.forEach(fn => fn());
+
+  const getDecision = (li) => _fdDecisions[li] || null;
+
+  const setDecisionField = (li, field, value) => {
+    _fdDecisions[li] = { ...(_fdDecisions[li] || {}), [field]: value };
+    _saveFdToLS(); notify();
+  };
+
+  const finalise = (layers) => {
+    layers.forEach((_, li) => {
+      if (_fdDecisions[li]?.decision === "accepted") {
+        const id = "80" + String(Math.floor(10000000 + Math.random() * 90000000));
+        _fdDecisions[li] = { ..._fdDecisions[li], policyId: id };
+      }
+    });
+    _fdFinalized = true;
+    _saveFdToLS(); notify();
+  };
+
+  const setBindDate = (val) => {
+    _fdBindDate = val;
+    _saveFdToLS(); notify();
+  };
+
+  return { getDecision, setDecisionField, finalise, setBindDate };
+}
