@@ -2506,10 +2506,7 @@ function FinalDecisionScreen({ layers }) {
           <div className="cst-panel" onClick={e => e.stopPropagation()}>
             <div className="cst-panel__header">
               <div className="cst-panel__titles">
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className={`ls-type-badge ls-type-badge--${(panelLayer.type || "excess").toLowerCase()}`} style={{ fontSize: 10 }}>{panelLayer.type}</span>
-                  <span className="cst-panel__layer">{fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
-                </div>
+                <span className="cst-panel__layer">{(panelLayer.type || "Excess").toUpperCase()} · {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
                 <span className="cst-panel__cov">{panelLayer.name}</span>
                 <span className="cst-panel__range">{panelLayer.product}</span>
               </div>
