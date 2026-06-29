@@ -1607,6 +1607,15 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     return null;
   }
 
+  const toggleCovSelected = (kindId) => {
+    const toggle = (items) => items.map(c =>
+      c.coverageKindId === kindId ? { ...c, selected: !c.selected }
+      : c.children ? { ...c, children: toggle(c.children) }
+      : c
+    );
+    setCoverageTree(prev => toggle(prev));
+  };
+
   const flattenTree = (items, depth) => {
     const rows = [];
     items.forEach(cov => {
@@ -1654,8 +1663,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const treeRows = coverageTree ? flattenTree(coverageTree, 0) : [];
 
   const totalRange = layers.reduce((s, l) => s + Math.max(0, (l.rangeTo || 0) - (l.rangeFrom || 0)), 0);
-  const MIN_HEIGHT_PX = 88;
-  const TOWER_HEIGHT_PX = Math.max(460, layers.length * 120);
+  const MIN_HEIGHT_PX = 60;
+  const TOWER_HEIGHT_PX = Math.max(280, layers.length * 80);
 
   const includedCount = selectedCov
     ? layers.filter((_, li) => getAssignment(selectedCov.coverageKindId, li)?.included).length
@@ -1703,7 +1712,11 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   ) : (
                     <span style={{ width: 20, flexShrink: 0 }} />
                   )}
-                  <span className={`ct-check${cov.selected ? " ct-check--on" : ""}`} style={{ flexShrink: 0 }}>
+                  <span
+                    className={`ct-check${cov.selected ? " ct-check--on" : ""}`}
+                    style={{ flexShrink: 0, cursor: "pointer" }}
+                    onClick={e => { e.stopPropagation(); toggleCovSelected(cov.coverageKindId); }}
+                  >
                     {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
                   </span>
                   <span className="cst-tree-row__label">{cov.coverageName}</span>

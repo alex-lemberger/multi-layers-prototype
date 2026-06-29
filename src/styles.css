@@ -1415,7 +1415,6 @@ body {
 }
 
 .cst-tree-scroll {
-  max-height: 580px;
   overflow-y: auto;
 }
 
