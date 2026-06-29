@@ -2236,6 +2236,8 @@ function FinalDecisionScreen({ layers }) {
   const { getDecision, setDecisionField, finalise, setBindDate, reset } = useFdState();
   const [collapsed, setCollapsed] = useS({});
   const [, forceRender] = useS(0);
+  const [panelLi, setPanelLi] = useS(null);   // layerIdx of open panel, null = closed
+  const [draft, setDraft] = useS(null);         // editable copy of decision while panel open
 
   useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
 
@@ -2273,222 +2275,312 @@ function FinalDecisionScreen({ layers }) {
   const groupOfferedPremium = (items) =>
     items.reduce((s, { layer }) => s + (layer.premium || 0), 0);
 
+  const openPanel = (li) => {
+    setDraft({ ...(getDecision(li) || {}) });
+    setPanelLi(li);
+  };
+
+  const closePanel = () => { setPanelLi(null); setDraft(null); };
+
+  const savePanel = () => {
+    if (panelLi === null || !draft) return;
+    Object.entries(draft).forEach(([field, value]) => setDecisionField(panelLi, field, value));
+    closePanel();
+  };
+
+  const decisionLabel = (dec) => {
+    if (dec === "accepted") return "✓ Accepted";
+    if (dec === "declined") return "✕ Declined";
+    return "Offered";
+  };
+
+  const panelLayer = panelLi !== null ? layers[panelLi] : null;
+  const draftIsAccepted = draft?.decision === "accepted";
+
   return (
-    <div>
-      <div className="main__title">
-        Final Decision <span className="layer-badge">All Layers</span>
-      </div>
-      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
-        Please select decision for submitted offer
-      </p>
-
-      {/* Bind Date — shared across all layers */}
-      <div className="fd-bind-row">
-        <span>Bind Date:</span>
-        <input
-          type="date"
-          className="fd-bind-input"
-          value={_fdBindDate}
-          onChange={e => setBindDate(e.target.value)}
-          disabled={isFinalized}
-        />
-      </div>
-
-      {/* Layer groups */}
-      {Object.entries(groups).map(([product, items]) => {
-        const status = groupStatus(items);
-        const offeredPremium = groupOfferedPremium(items);
-        const isCollapsed = !!collapsed[product];
-
-        return (
-          <div key={product} className="fd-group">
-            {/* Group header */}
-            <div className="fd-group-header" onClick={() => setCollapsed(c => ({ ...c, [product]: !c[product] }))}>
-              <span className="fd-group-header__product">{product}</span>
-              <span className={`fd-group-header__status ${statusClass(status)}`}>{status}</span>
-              <span className="fd-group-header__premium">{offeredPremium ? fmtEUR(offeredPremium) : "—"}</span>
-              <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"} fd-group-header__chevron`} />
-            </div>
-
-            {/* Layer rows */}
-            {!isCollapsed && (
-              <table className="fd-table">
-                <thead>
-                  <tr>
-                    <th>Program Structure</th>
-                    <th>Decision</th>
-                    <th>Offered Premium</th>
-                    <th>Type of Participation</th>
-                    <th>Final HDI Share %</th>
-                    <th>Lead Insurer</th>
-                    <th>Achieved Premium</th>
-                    <th>Achieved HDI Premium</th>
-                    <th>Policy</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(({ layer, li }) => {
-                    const d = getDecision(li) || {};
-                    const achievedHdi = d.achievedPremium && d.hdiSharePct
-                      ? Math.round(Number(d.achievedPremium) * Number(d.hdiSharePct) / 100)
-                      : null;
-                    const isAccepted = d.decision === "accepted";
-                    const isDeclined = d.decision === "declined";
-
-                    return (
-                      <tr key={li}>
-                        {/* Program Structure */}
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px" }}>
-                              {layer.type}
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{layer.name}</span>
-                          </div>
-                        </td>
-
-                        {/* Decision */}
-                        <td>
-                          {isFinalized ? (
-                            <span className={`fd-group-header__status ${isAccepted ? "fd-status--accepted" : "fd-status--declined"}`} style={{ padding: "2px 8px", borderRadius: 10 }}>
-                              {isAccepted ? "✓ Accepted" : "✕ Declined"}
-                            </span>
-                          ) : (
-                            <select
-                              className={`fd-decision-select${isAccepted ? " fd-decision-select--accepted" : isDeclined ? " fd-decision-select--declined" : ""}`}
-                              value={d.decision || "offered"}
-                              onChange={e => setDecisionField(li, "decision", e.target.value)}
-                            >
-                              <option value="offered">Offered</option>
-                              <option value="accepted">✓ Accepted</option>
-                              <option value="declined">✕ Declined</option>
-                            </select>
-                          )}
-                        </td>
-
-                        {/* Offered Premium */}
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                          {layer.premium ? fmtEUR(layer.premium) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                        </td>
-
-                        {/* Type of Participation */}
-                        <td>
-                          <input
-                            className="fd-input"
-                            value={d.typeOfParticipation || ""}
-                            disabled={isFinalized}
-                            onChange={e => setDecisionField(li, "typeOfParticipation", e.target.value)}
-                          />
-                        </td>
-
-                        {/* Final HDI Share % */}
-                        <td>
-                          <input
-                            className="fd-input"
-                            style={{ width: 60 }}
-                            type="number"
-                            min="0" max="100"
-                            value={d.hdiSharePct || ""}
-                            disabled={isFinalized}
-                            onChange={e => setDecisionField(li, "hdiSharePct", e.target.value)}
-                          />
-                        </td>
-
-                        {/* Lead Insurer */}
-                        <td style={{ textAlign: "center" }}>
-                          <input
-                            type="checkbox"
-                            checked={!!d.leadInsurer}
-                            disabled={isFinalized}
-                            onChange={e => setDecisionField(li, "leadInsurer", e.target.checked)}
-                            style={{ cursor: isFinalized ? "not-allowed" : "pointer", width: 15, height: 15 }}
-                          />
-                        </td>
-
-                        {/* Achieved Premium */}
-                        <td>
-                          <input
-                            className="fd-input"
-                            type="number"
-                            value={d.achievedPremium || ""}
-                            disabled={isFinalized || !isAccepted}
-                            placeholder={!isAccepted ? "—" : ""}
-                            onChange={e => setDecisionField(li, "achievedPremium", e.target.value)}
-                          />
-                        </td>
-
-                        {/* Achieved HDI Premium — auto-computed */}
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                          {achievedHdi != null ? fmtEUR(achievedHdi) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                        </td>
-
-                        {/* Policy */}
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                          {d.policyId
-                            ? <span style={{ color: "var(--accent)", fontWeight: 600 }}>{d.policyId}</span>
-                            : <span style={{ color: "var(--fg-faint)" }}>—</span>
-                          }
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Finalise button / result */}
-      {!isFinalized ? (
-        <div className="fd-finalise-row">
-          <button
-            className="btn btn--primary"
-            disabled={!allHaveDecision}
-            style={{ opacity: allHaveDecision ? 1 : 0.45, cursor: allHaveDecision ? "pointer" : "not-allowed" }}
-            onClick={() => finalise(layers)}
-          >
-            Finalise and create policy
-          </button>
-          {!allHaveDecision && (
-            <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>
-              All layers must have a decision before finalising
-            </span>
-          )}
-          <button
-            className="btn btn--outline"
-            style={{ marginLeft: "auto", fontSize: 12, color: "var(--fg-muted)" }}
-            onClick={() => reset(layers)}
-          >
-            <i className="fa-solid fa-rotate-left" style={{ marginRight: 6 }} />
-            Reset (demo)
-          </button>
+    <div style={{ display: "flex", gap: 0, position: "relative" }}>
+      {/* ---- Main content ---- */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="main__title">
+          Final Decision <span className="layer-badge">All Layers</span>
         </div>
-      ) : (
-        <div className="fd-result-banner">
-          <div className="fd-result-banner__title">
-            <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
-            Offer Finalised
+        <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+          Please select decision for submitted offer
+        </p>
+
+        {/* Bind Date — shared across all layers */}
+        <div className="fd-bind-row">
+          <span>Bind Date:</span>
+          <input
+            type="date"
+            className="fd-bind-input"
+            value={_fdBindDate}
+            onChange={e => setBindDate(e.target.value)}
+            disabled={isFinalized}
+          />
+        </div>
+
+        {/* Layer groups */}
+        {Object.entries(groups).map(([product, items]) => {
+          const status = groupStatus(items);
+          const offeredPremium = groupOfferedPremium(items);
+          const isCollapsed = !!collapsed[product];
+
+          return (
+            <div key={product} className="fd-group">
+              {/* Group header */}
+              <div className="fd-group-header" onClick={() => setCollapsed(c => ({ ...c, [product]: !c[product] }))}>
+                <span className="fd-group-header__product">{product}</span>
+                <span className={`fd-group-header__status ${statusClass(status)}`}>{status}</span>
+                <span className="fd-group-header__premium">{offeredPremium ? fmtEUR(offeredPremium) : "—"}</span>
+                <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"} fd-group-header__chevron`} />
+              </div>
+
+              {/* Layer rows — read-only display */}
+              {!isCollapsed && (
+                <table className="fd-table">
+                  <thead>
+                    <tr>
+                      <th>Program Structure</th>
+                      <th>Decision</th>
+                      <th>Offered Premium</th>
+                      <th>Type of Participation</th>
+                      <th>HDI Share %</th>
+                      <th>Lead Insurer</th>
+                      <th>Achieved Premium</th>
+                      <th>Achieved HDI Premium</th>
+                      <th>Policy</th>
+                      {!isFinalized && <th></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(({ layer, li }) => {
+                      const d = getDecision(li) || {};
+                      const achievedHdi = d.achievedPremium && d.hdiSharePct
+                        ? Math.round(Number(d.achievedPremium) * Number(d.hdiSharePct) / 100)
+                        : null;
+                      const isAccepted = d.decision === "accepted";
+                      const isDeclined = d.decision === "declined";
+                      const isActive = panelLi === li;
+
+                      return (
+                        <tr key={li} style={{ background: isActive ? "var(--bg-sunk)" : undefined }}>
+                          {/* Program Structure */}
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px" }}>
+                                {layer.type}
+                              </span>
+                              <span style={{ fontSize: 12, fontWeight: 600 }}>{layer.name}</span>
+                            </div>
+                          </td>
+
+                          {/* Decision — read-only badge */}
+                          <td>
+                            <span className={`fd-group-header__status ${isAccepted ? "fd-status--accepted" : isDeclined ? "fd-status--declined" : "fd-status--pending"}`} style={{ padding: "2px 8px", borderRadius: 10 }}>
+                              {decisionLabel(d.decision)}
+                            </span>
+                          </td>
+
+                          {/* Offered Premium */}
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                            {layer.premium ? fmtEUR(layer.premium) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                          </td>
+
+                          {/* Type of Participation */}
+                          <td style={{ fontSize: 12, color: d.typeOfParticipation ? "var(--fg)" : "var(--fg-faint)" }}>
+                            {d.typeOfParticipation || "—"}
+                          </td>
+
+                          {/* HDI Share % */}
+                          <td style={{ fontSize: 12 }}>
+                            {d.hdiSharePct ? `${d.hdiSharePct}%` : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                          </td>
+
+                          {/* Lead Insurer */}
+                          <td style={{ fontSize: 12 }}>
+                            {d.leadInsurer
+                              ? <span style={{ color: "var(--accent)" }}>✓ Yes</span>
+                              : <span style={{ color: "var(--fg-faint)" }}>No</span>}
+                          </td>
+
+                          {/* Achieved Premium */}
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                            {isAccepted && d.achievedPremium
+                              ? fmtEUR(Number(d.achievedPremium))
+                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                          </td>
+
+                          {/* Achieved HDI Premium — auto-computed */}
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                            {achievedHdi != null ? fmtEUR(achievedHdi) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                          </td>
+
+                          {/* Policy */}
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                            {d.policyId
+                              ? <span style={{ color: "var(--accent)", fontWeight: 600 }}>{d.policyId}</span>
+                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                          </td>
+
+                          {/* Edit button */}
+                          {!isFinalized && (
+                            <td style={{ width: 32, textAlign: "center" }}>
+                              <button
+                                onClick={() => isActive ? closePanel() : openPanel(li)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: isActive ? "var(--accent)" : "var(--fg-muted)", fontSize: 13, padding: "2px 4px" }}
+                                title="Edit layer decision"
+                              >
+                                <i className="fa-solid fa-pen" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Finalise button / result */}
+        {!isFinalized ? (
+          <div className="fd-finalise-row">
+            <button
+              className="btn btn--primary"
+              disabled={!allHaveDecision}
+              style={{ opacity: allHaveDecision ? 1 : 0.45, cursor: allHaveDecision ? "pointer" : "not-allowed" }}
+              onClick={() => finalise(layers)}
+            >
+              Finalise and create policy
+            </button>
+            {!allHaveDecision && (
+              <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>
+                All layers must have a decision before finalising
+              </span>
+            )}
             <button
               className="btn btn--outline"
-              style={{ marginLeft: "auto", fontSize: 11, color: "var(--fg-muted)" }}
+              style={{ marginLeft: "auto", fontSize: 12, color: "var(--fg-muted)" }}
               onClick={() => reset(layers)}
             >
-              <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
+              <i className="fa-solid fa-rotate-left" style={{ marginRight: 6 }} />
               Reset (demo)
             </button>
           </div>
-          <div className="fd-policy-cards">
-            {layers.map((layer, li) => {
-              const d = getDecision(li);
-              if (!d || d.decision !== "accepted" || !d.policyId) return null;
-              return (
-                <div key={li} className="fd-policy-card">
-                  <div className="fd-policy-card__layer">{layer.name}</div>
-                  <div className="fd-policy-card__id">Policy-ID: {d.policyId}</div>
-                </div>
-              );
-            })}
+        ) : (
+          <div className="fd-result-banner">
+            <div className="fd-result-banner__title">
+              <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
+              Offer Finalised
+              <button
+                className="btn btn--outline"
+                style={{ marginLeft: "auto", fontSize: 11, color: "var(--fg-muted)" }}
+                onClick={() => reset(layers)}
+              >
+                <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
+                Reset (demo)
+              </button>
+            </div>
+            <div className="fd-policy-cards">
+              {layers.map((layer, li) => {
+                const d = getDecision(li);
+                if (!d || d.decision !== "accepted" || !d.policyId) return null;
+                return (
+                  <div key={li} className="fd-policy-card">
+                    <div className="fd-policy-card__layer">{layer.name}</div>
+                    <div className="fd-policy-card__id">Policy-ID: {d.policyId}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Edit panel (slides in from right) ---- */}
+      {panelLi !== null && panelLayer && draft && (
+        <div className="cst-tower-panel" style={{ flex: "0 0 360px", borderLeft: "1px solid var(--border)", background: "var(--bg-elev)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div className="drawer__header" style={{ borderBottom: "1px solid var(--border)", padding: "14px 20px" }}>
+            <div className="drawer__title" style={{ fontSize: 14 }}>
+              <span className={`ls-type-badge ls-type-badge--${(panelLayer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, marginRight: 8 }}>{panelLayer.type}</span>
+              {panelLayer.name}
+            </div>
+            <button className="drawer__close" onClick={closePanel}><i className="fa-solid fa-xmark" /></button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+            {/* Decision */}
+            <div style={{ marginBottom: 18 }}>
+              <div className="dfield__label" style={{ marginBottom: 6 }}>Decision</div>
+              <select
+                className={`fd-decision-select${draft.decision === "accepted" ? " fd-decision-select--accepted" : draft.decision === "declined" ? " fd-decision-select--declined" : ""}`}
+                style={{ width: "100%" }}
+                value={draft.decision || "offered"}
+                onChange={e => setDraft(d => ({ ...d, decision: e.target.value, achievedPremium: e.target.value !== "accepted" ? "" : d.achievedPremium }))}
+              >
+                <option value="offered">Offered</option>
+                <option value="accepted">✓ Accepted</option>
+                <option value="declined">✕ Declined</option>
+              </select>
+            </div>
+
+            {/* Type of Participation */}
+            <div style={{ marginBottom: 18 }}>
+              <div className="dfield__label" style={{ marginBottom: 6 }}>Type of Participation</div>
+              <input
+                className="fd-input"
+                value={draft.typeOfParticipation || ""}
+                onChange={e => setDraft(d => ({ ...d, typeOfParticipation: e.target.value }))}
+              />
+            </div>
+
+            {/* HDI Share % */}
+            <div style={{ marginBottom: 18 }}>
+              <div className="dfield__label" style={{ marginBottom: 6 }}>Final HDI Share %</div>
+              <input
+                className="fd-input"
+                style={{ width: 80 }}
+                type="number"
+                min="0" max="100"
+                value={draft.hdiSharePct || ""}
+                onChange={e => setDraft(d => ({ ...d, hdiSharePct: e.target.value }))}
+              />
+            </div>
+
+            {/* Lead Insurer */}
+            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+              onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
+              <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`} style={{ flexShrink: 0 }}>
+                <div className="ls-toggle__thumb" />
+              </div>
+              <span style={{ fontSize: 13 }}>Lead Insurer</span>
+            </div>
+
+            {/* Achieved Premium — only if Accepted */}
+            {draftIsAccepted && (
+              <div style={{ marginBottom: 18 }}>
+                <div className="dfield__label" style={{ marginBottom: 6 }}>Achieved Premium (€)</div>
+                <input
+                  className="fd-input"
+                  type="number"
+                  value={draft.achievedPremium || ""}
+                  onChange={e => setDraft(d => ({ ...d, achievedPremium: e.target.value }))}
+                />
+                {draft.achievedPremium && draft.hdiSharePct && (
+                  <div style={{ fontSize: 11, color: "var(--fg-muted)", marginTop: 6 }}>
+                    Achieved HDI Premium: {fmtEUR(Math.round(Number(draft.achievedPremium) * Number(draft.hdiSharePct) / 100))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="drawer__footer" style={{ borderTop: "1px solid var(--border)", padding: "12px 20px" }}>
+            <button className="btn btn--primary" onClick={savePanel}>Save</button>
+            <button className="btn btn--outline" onClick={closePanel}>Cancel</button>
           </div>
         </div>
       )}
