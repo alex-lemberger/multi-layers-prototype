@@ -1666,7 +1666,16 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   // Open panel: copy current assignment into draft
   const openPanel = (li) => {
     const a = getAssignment(selectedCov.coverageKindId, li) || {};
-    setPanelDraft({ included: !!a.included, limitOcc: a.limitOcc || "", limitAgg: a.limitAgg || "", deductible: a.deductible || "" });
+    setPanelDraft({
+      sublimit: a.sublimit || "",
+      sharedSublimit: a.sharedSublimit || "",
+      deductible: a.deductible || "",
+      retroDateYears: a.retroDateYears || "",
+      indemnityPeriodValue: a.indemnityPeriodValue || "",
+      indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
+      waitingPeriodValue: a.waitingPeriodValue || "",
+      waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
+    });
     setPanelTarget({ layerIdx: li });
   };
 
@@ -1957,48 +1966,77 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             </div>
 
             <div className="cst-panel__body">
-              {/* Include toggle */}
-              <div
-                className={`cst-panel__include-row${panelDraft.included ? " cst-panel__include-row--on" : ""}`}
-                style={{ cursor: "pointer" }}
-                onClick={() => setPanelDraft(d => ({ ...d, included: !d.included }))}
-              >
-                <span className="cst-panel__include-label">Include in this layer</span>
-                <div className={`ls-toggle${panelDraft.included ? " ls-toggle--on" : ""}`}>
-                  <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+              {/* 1. Sublimit (agg) */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Sublimit (agg)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 1,000,000"
+                    value={panelDraft.sublimit || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, sublimit: e.target.value }))} />
                 </div>
               </div>
-
-              {/* Limit fields — disabled when not included */}
+              {/* 2. Shared Sublimit (agg) */}
               <div className="cst-panel__field">
-                <span className="cst-panel__field-label">Limit (per occurrence)</span>
-                <input
-                  className="cst-panel-input"
-                  placeholder="e.g. 1,000,000"
-                  disabled={!panelDraft.included}
-                  value={panelDraft.limitOcc || ""}
-                  onChange={e => setPanelDraft(d => ({ ...d, limitOcc: e.target.value }))}
-                />
+                <span className="cst-panel__field-label">Shared Sublimit (agg)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 500,000"
+                    value={panelDraft.sharedSublimit || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
+                </div>
               </div>
+              {/* 3. Deductible (absolute) */}
               <div className="cst-panel__field">
-                <span className="cst-panel__field-label">Limit (aggregate)</span>
-                <input
-                  className="cst-panel-input"
-                  placeholder="e.g. 5,000,000"
-                  disabled={!panelDraft.included}
-                  value={panelDraft.limitAgg || ""}
-                  onChange={e => setPanelDraft(d => ({ ...d, limitAgg: e.target.value }))}
-                />
+                <span className="cst-panel__field-label">Deductible (absolute)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 50,000"
+                    value={panelDraft.deductible || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, deductible: e.target.value }))} />
+                </div>
               </div>
+              {/* 4. Retroactive Cover */}
               <div className="cst-panel__field">
-                <span className="cst-panel__field-label">Deductible</span>
-                <input
-                  className="cst-panel-input"
-                  placeholder="e.g. 50,000"
-                  disabled={!panelDraft.included}
-                  value={panelDraft.deductible || ""}
-                  onChange={e => setPanelDraft(d => ({ ...d, deductible: e.target.value }))}
-                />
+                <span className="cst-panel__field-label">Retroactive Cover</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 3"
+                    value={panelDraft.retroDateYears || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)", whiteSpace: "nowrap" }}>years</span>
+                </div>
+              </div>
+              {/* 5. Indemnity Period */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Indemnity Period</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 12"
+                    value={panelDraft.indemnityPeriodValue || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
+                  <select
+                    style={{ padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg)", color: "var(--fg)", cursor: "pointer" }}
+                    value={panelDraft.indemnityPeriodUnit || "MONTH"}
+                    onChange={e => setPanelDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
+              </div>
+              {/* 6. Waiting Period */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Waiting Period</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 8"
+                    value={panelDraft.waitingPeriodValue || ""}
+                    onChange={e => setPanelDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
+                  <select
+                    style={{ padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg)", color: "var(--fg)", cursor: "pointer" }}
+                    value={panelDraft.waitingPeriodUnit || "HOUR"}
+                    onChange={e => setPanelDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
               </div>
             </div>
 
