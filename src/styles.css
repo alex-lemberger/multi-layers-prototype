@@ -1513,6 +1513,13 @@ body {
     rgba(0,0,0,0.025) 6px, rgba(0,0,0,0.025) 12px
   );
 }
+.cst-layer-block--locked {
+  background: #f0f0f0;
+  border-color: #ddd;
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
 .cst-layer-block--na {
   background: var(--bg-stripe);
   border-color: var(--border-soft);

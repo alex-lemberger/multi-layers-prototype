@@ -1791,7 +1791,9 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
                 {layers.map((layer, li) => {
                   const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
-                  const included = !!assignment.included;
+                  const isPrimary = li === 0;
+                  const isExcluded = !isPrimary && assignment.excluded === true;
+                  const isLocked = !isPrimary && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current);
                   const rangeSize = Math.max(0, (layer.rangeTo || 0) - (layer.rangeFrom || 0));
                   const heightFraction = totalRange > 0 ? rangeSize / totalRange : 1 / layers.length;
                   const blockHeight = Math.max(MIN_HEIGHT_PX, Math.round(heightFraction * TOWER_HEIGHT_PX));
@@ -1799,19 +1801,24 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   const isPanelOpen = panelTarget?.layerIdx === li;
 
                   let blockClass = "cst-layer-block";
-                  blockClass += included ? " cst-layer-block--included" : " cst-layer-block--excluded";
+                  if (isLocked) blockClass += " cst-layer-block--locked";
+                  else if (isExcluded) blockClass += " cst-layer-block--excluded";
+                  else blockClass += " cst-layer-block--included";
                   if (isActive) blockClass += " cst-layer-block--active";
-                  if (editMode === "panel") blockClass += " cst-layer-block--readonly";
+                  if (editMode === "panel" && !isLocked) blockClass += " cst-layer-block--readonly";
+
+                  const handleBlockClick = () => {
+                    if (editMode !== "panel" || isLocked) return;
+                    if (isExcluded) { setExcluded(selectedCov.coverageKindId, li, false); return; }
+                    openPanel(li);
+                  };
 
                   return (
                     <div
                       key={layer.id}
                       className={blockClass}
-                      style={{
-                        minHeight: blockHeight,
-                        outline: isPanelOpen ? "2px solid var(--accent)" : undefined,
-                      }}
-                      onClick={editMode === "panel" ? () => openPanel(li) : undefined}
+                      style={{ minHeight: blockHeight, outline: isPanelOpen ? "2px solid var(--accent)" : undefined }}
+                      onClick={handleBlockClick}
                     >
                       <div className="cst-block-head">
                         <span
@@ -1830,70 +1837,90 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                         </span>
                         <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
 
-                        {/* Inline mode: include/exclude button */}
-                        {editMode === "inline" && (
+                        {/* Primary: always-included badge */}
+                        {editMode === "inline" && isPrimary && (
+                          <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--fg-faint)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <i className="fa-solid fa-lock" style={{ fontSize: 10 }} /> Always included
+                          </span>
+                        )}
+
+                        {/* Excess inline: exclude / restore toggle (only when not locked) */}
+                        {editMode === "inline" && !isPrimary && !isLocked && (
                           <button
-                            className={`cst-assign-btn ${included ? "cst-assign-btn--exclude" : "cst-assign-btn--off"}`}
-                            onClick={e => { e.stopPropagation(); setIncluded(selectedCov.coverageKindId, li, !included); }}
+                            className={`cst-assign-btn ${isExcluded ? "cst-assign-btn--off" : "cst-assign-btn--exclude"}`}
+                            onClick={e => { e.stopPropagation(); setExcluded(selectedCov.coverageKindId, li, !isExcluded); }}
                           >
-                            {included
-                              ? <><i className="fa-regular fa-circle-xmark" style={{ fontSize: 11 }} /> Exclude</>
-                              : <><i className="fa-solid fa-plus" style={{ fontSize: 10 }} /> Include</>
+                            {isExcluded
+                              ? <><i className="fa-solid fa-plus" style={{ fontSize: 10 }} /> Restore</>
+                              : <><i className="fa-regular fa-circle-xmark" style={{ fontSize: 11 }} /> Exclude</>
                             }
                           </button>
                         )}
 
-                        {/* Panel mode: edit icon hint */}
-                        {editMode === "panel" && (
+                        {/* Panel mode: edit / restore hint icon (not on locked) */}
+                        {editMode === "panel" && !isLocked && (
                           <span style={{ marginLeft: "auto", fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)" }}>
-                            <i className="fa-solid fa-pencil" />
+                            {isExcluded
+                              ? <i className="fa-solid fa-rotate-left" />
+                              : <i className="fa-solid fa-pencil" />
+                            }
                           </span>
                         )}
                       </div>
 
-                      {/* Inline mode: editable inputs */}
-                      {editMode === "inline" && included && (
+                      {/* Inline: compact inputs for included non-locked blocks */}
+                      {editMode === "inline" && !isExcluded && !isLocked && (
                         <div className="cst-block-inputs">
                           <div className="cst-input-group">
-                            <span className="cst-input-label">Limit</span>
-                            <input className="cst-input" placeholder="e.g. 1000000"
-                              value={assignment.limitOcc || ""}
+                            <span className="cst-input-label">Sublimit</span>
+                            <input className="cst-input" placeholder="€"
+                              value={assignment.sublimit || ""}
                               onClick={e => e.stopPropagation()}
-                              onChange={e => setField(selectedCov.coverageKindId, li, "limitOcc", e.target.value)} />
-                          </div>
-                          <div className="cst-input-group">
-                            <span className="cst-input-label">Agg</span>
-                            <input className="cst-input" placeholder="e.g. 5000000"
-                              value={assignment.limitAgg || ""}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => setField(selectedCov.coverageKindId, li, "limitAgg", e.target.value)} />
+                              onChange={e => setFields(selectedCov.coverageKindId, li, { sublimit: e.target.value })} />
                           </div>
                           <div className="cst-input-group">
                             <span className="cst-input-label">Ded</span>
-                            <input className="cst-input" placeholder="e.g. 50000"
+                            <input className="cst-input" placeholder="€"
                               value={assignment.deductible || ""}
                               onClick={e => e.stopPropagation()}
-                              onChange={e => setField(selectedCov.coverageKindId, li, "deductible", e.target.value)} />
+                              onChange={e => setFields(selectedCov.coverageKindId, li, { deductible: e.target.value })} />
+                          </div>
+                          <div className="cst-input-group">
+                            <span className="cst-input-label">Retro</span>
+                            <input className="cst-input" placeholder="yrs"
+                              value={assignment.retroDateYears || ""}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => setFields(selectedCov.coverageKindId, li, { retroDateYears: e.target.value })} />
                           </div>
                         </div>
                       )}
 
-                      {/* Panel mode: read-only value display */}
-                      {editMode === "panel" && included && (
+                      {/* Panel: read-only value summary for included non-locked blocks */}
+                      {editMode === "panel" && !isExcluded && !isLocked && (
                         <div className="cst-block-val-row" style={{ marginTop: 6 }}>
-                          {assignment.limitOcc && <span><span className="cst-val-label">Limit </span><span className="cst-val-num">{fmtEUR(Number(assignment.limitOcc))}</span></span>}
-                          {assignment.limitAgg && <span><span className="cst-val-label">Agg </span><span className="cst-val-num">{fmtEUR(Number(assignment.limitAgg))}</span></span>}
+                          {assignment.sublimit && <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{fmtEUR(Number(assignment.sublimit))}</span></span>}
                           {assignment.deductible && <span><span className="cst-val-label">Ded </span><span className="cst-val-num">{fmtEUR(Number(assignment.deductible))}</span></span>}
-                          {!assignment.limitOcc && !assignment.limitAgg && !assignment.deductible && (
-                            <span style={{ fontSize: 12, color: "var(--fg-faint)" }}>No limits configured</span>
+                          {assignment.retroDateYears && <span><span className="cst-val-label">Retro </span><span className="cst-val-num">{assignment.retroDateYears}y</span></span>}
+                          {!assignment.sublimit && !assignment.deductible && !assignment.retroDateYears && (
+                            <span style={{ fontSize: 12, color: "var(--fg-faint)" }}>No limits configured — click to edit</span>
                           )}
                         </div>
                       )}
 
-                      {/* Panel mode: not-included state */}
-                      {editMode === "panel" && !included && (
-                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4 }}>
-                          Not included — click to configure
+                      {/* Status text for excluded and locked blocks */}
+                      {isExcluded && !isLocked && editMode === "panel" && (
+                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
+                          Excluded — click to restore
+                        </span>
+                      )}
+                      {isExcluded && !isLocked && editMode === "inline" && (
+                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
+                          Excluded from this layer
+                        </span>
+                      )}
+                      {isLocked && (
+                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
+                          Excluded by cascade
                         </span>
                       )}
                     </div>
