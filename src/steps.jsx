@@ -2224,3 +2224,251 @@ function useFdState() {
 
   return { getDecision, setDecisionField, finalise, setBindDate };
 }
+
+function FinalDecisionScreen({ layers }) {
+  const { getDecision, setDecisionField, finalise, setBindDate } = useFdState();
+  const [collapsed, setCollapsed] = useS({});
+  const [, forceRender] = useS(0);
+
+  useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
+
+  // Group layers by product
+  const groups = layers.reduce((acc, layer, li) => {
+    const prod = layer.product || "Unknown";
+    if (!acc[prod]) acc[prod] = [];
+    acc[prod].push({ layer, li });
+    return acc;
+  }, {});
+
+  const allHaveDecision = layers.every((_, li) => {
+    const d = getDecision(li);
+    return d && d.decision !== "offered";
+  });
+
+  const isFinalized = _fdFinalized;
+
+  // Aggregate status for a group
+  const groupStatus = (items) => {
+    const decisions = items.map(({ li }) => getDecision(li)?.decision || "offered");
+    if (decisions.every(d => d === "offered"))   return "Pending";
+    if (decisions.every(d => d === "accepted"))  return "All Accepted";
+    if (decisions.every(d => d === "declined"))  return "All Declined";
+    return "Mixed";
+  };
+
+  const statusClass = (status) => {
+    if (status === "All Accepted") return "fd-status--accepted";
+    if (status === "All Declined") return "fd-status--declined";
+    if (status === "Mixed")        return "fd-status--mixed";
+    return "fd-status--pending";
+  };
+
+  const groupOfferedPremium = (items) =>
+    items.reduce((s, { layer }) => s + (layer.premium || 0), 0);
+
+  return (
+    <div>
+      <div className="main__title">
+        Final Decision <span className="layer-badge">All Layers</span>
+      </div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Please select decision for submitted offer
+      </p>
+
+      {/* Bind Date — shared across all layers */}
+      <div className="fd-bind-row">
+        <span>Bind Date:</span>
+        <input
+          type="date"
+          className="fd-bind-input"
+          value={_fdBindDate}
+          onChange={e => setBindDate(e.target.value)}
+          disabled={isFinalized}
+        />
+      </div>
+
+      {/* Layer groups */}
+      {Object.entries(groups).map(([product, items]) => {
+        const status = groupStatus(items);
+        const offeredPremium = groupOfferedPremium(items);
+        const isCollapsed = !!collapsed[product];
+
+        return (
+          <div key={product} className="fd-group">
+            {/* Group header */}
+            <div className="fd-group-header" onClick={() => setCollapsed(c => ({ ...c, [product]: !c[product] }))}>
+              <span className="fd-group-header__product">{product}</span>
+              <span className={`fd-group-header__status ${statusClass(status)}`}>{status}</span>
+              <span className="fd-group-header__premium">{offeredPremium ? fmtEUR(offeredPremium) : "—"}</span>
+              <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"} fd-group-header__chevron`} />
+            </div>
+
+            {/* Layer rows */}
+            {!isCollapsed && (
+              <table className="fd-table">
+                <thead>
+                  <tr>
+                    <th>Program Structure</th>
+                    <th>Decision</th>
+                    <th>Offered Premium</th>
+                    <th>Type of Participation</th>
+                    <th>Final HDI Share %</th>
+                    <th>Lead Insurer</th>
+                    <th>Achieved Premium</th>
+                    <th>Achieved HDI Premium</th>
+                    <th>Policy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(({ layer, li }) => {
+                    const d = getDecision(li) || {};
+                    const achievedHdi = d.achievedPremium && d.hdiSharePct
+                      ? Math.round(Number(d.achievedPremium) * Number(d.hdiSharePct) / 100)
+                      : null;
+                    const isAccepted = d.decision === "accepted";
+                    const isDeclined = d.decision === "declined";
+
+                    return (
+                      <tr key={li}>
+                        {/* Program Structure */}
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px" }}>
+                              {layer.type}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>{layer.name}</span>
+                          </div>
+                        </td>
+
+                        {/* Decision */}
+                        <td>
+                          {isFinalized ? (
+                            <span className={`fd-group-header__status ${isAccepted ? "fd-status--accepted" : "fd-status--declined"}`} style={{ padding: "2px 8px", borderRadius: 10 }}>
+                              {isAccepted ? "✓ Accepted" : "✕ Declined"}
+                            </span>
+                          ) : (
+                            <select
+                              className={`fd-decision-select${isAccepted ? " fd-decision-select--accepted" : isDeclined ? " fd-decision-select--declined" : ""}`}
+                              value={d.decision || "offered"}
+                              onChange={e => setDecisionField(li, "decision", e.target.value)}
+                            >
+                              <option value="offered">Offered</option>
+                              <option value="accepted">✓ Accepted</option>
+                              <option value="declined">✕ Declined</option>
+                            </select>
+                          )}
+                        </td>
+
+                        {/* Offered Premium */}
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                          {layer.premium ? fmtEUR(layer.premium) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                        </td>
+
+                        {/* Type of Participation */}
+                        <td>
+                          <input
+                            className="fd-input"
+                            value={d.typeOfParticipation || ""}
+                            disabled={isFinalized}
+                            onChange={e => setDecisionField(li, "typeOfParticipation", e.target.value)}
+                          />
+                        </td>
+
+                        {/* Final HDI Share % */}
+                        <td>
+                          <input
+                            className="fd-input"
+                            style={{ width: 60 }}
+                            type="number"
+                            min="0" max="100"
+                            value={d.hdiSharePct || ""}
+                            disabled={isFinalized}
+                            onChange={e => setDecisionField(li, "hdiSharePct", e.target.value)}
+                          />
+                        </td>
+
+                        {/* Lead Insurer */}
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!d.leadInsurer}
+                            disabled={isFinalized}
+                            onChange={e => setDecisionField(li, "leadInsurer", e.target.checked)}
+                            style={{ cursor: isFinalized ? "not-allowed" : "pointer", width: 15, height: 15 }}
+                          />
+                        </td>
+
+                        {/* Achieved Premium */}
+                        <td>
+                          <input
+                            className="fd-input"
+                            type="number"
+                            value={d.achievedPremium || ""}
+                            disabled={isFinalized || isDeclined}
+                            placeholder={isDeclined ? "—" : ""}
+                            onChange={e => setDecisionField(li, "achievedPremium", e.target.value)}
+                          />
+                        </td>
+
+                        {/* Achieved HDI Premium — auto-computed */}
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                          {achievedHdi != null ? fmtEUR(achievedHdi) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                        </td>
+
+                        {/* Policy */}
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                          {d.policyId
+                            ? <span style={{ color: "var(--accent)", fontWeight: 600 }}>{d.policyId}</span>
+                            : <span style={{ color: "var(--fg-faint)" }}>—</span>
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Finalise button / result */}
+      {!isFinalized ? (
+        <div className="fd-finalise-row">
+          <button
+            className="btn btn--primary"
+            disabled={!allHaveDecision}
+            style={{ opacity: allHaveDecision ? 1 : 0.45, cursor: allHaveDecision ? "pointer" : "not-allowed" }}
+            onClick={() => finalise(layers)}
+          >
+            Finalise and create policy
+          </button>
+          {!allHaveDecision && (
+            <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>
+              All layers must have a decision before finalising
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="fd-result-banner">
+          <div className="fd-result-banner__title">
+            <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
+            Offer Finalised
+          </div>
+          <div className="fd-policy-cards">
+            {layers.map((layer, li) => {
+              const d = getDecision(li);
+              if (!d || d.decision !== "accepted" || !d.policyId) return null;
+              return (
+                <div key={li} className="fd-policy-card">
+                  <div className="fd-policy-card__layer">{layer.name}</div>
+                  <div className="fd-policy-card__id">Policy-ID: {d.policyId}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
