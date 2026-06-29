@@ -1514,14 +1514,14 @@ function useLiabState(layers, activeLayerIdx) {
 // so it persists while navigating away and back within the same session.
 const _spreadingAssignments = (() => {
   try {
-    const raw = localStorage.getItem("ml_spreading_v1");
+    const raw = localStorage.getItem("ml_spreading_v2");
     return raw ? JSON.parse(raw) : {};
   } catch { return {}; }
 })();
 let _spreadingListeners = [];
 
 function _saveSpreadingToLS() {
-  try { localStorage.setItem("ml_spreading_v1", JSON.stringify(_spreadingAssignments)); } catch {}
+  try { localStorage.setItem("ml_spreading_v2", JSON.stringify(_spreadingAssignments)); } catch {}
 }
 
 function useSpreadingState() {
@@ -1536,21 +1536,19 @@ function useSpreadingState() {
   const getAssignment = (kindId, layerIdx) =>
     _spreadingAssignments[kindId + "_" + layerIdx] || null;
 
-  const setIncluded = (kindId, layerIdx, included) => {
+  const setExcluded = (kindId, layerIdx, excluded) => {
     const key = kindId + "_" + layerIdx;
-    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || {}), included };
-    _saveSpreadingToLS();
-    notify();
+    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || {}), excluded };
+    _saveSpreadingToLS(); notify();
   };
 
-  const setField = (kindId, layerIdx, field, value) => {
+  const setFields = (kindId, layerIdx, fields) => {
     const key = kindId + "_" + layerIdx;
-    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || { included: true }), [field]: value };
-    _saveSpreadingToLS();
-    notify();
+    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || {}), ...fields };
+    _saveSpreadingToLS(); notify();
   };
 
-  return { getAssignment, setIncluded, setField };
+  return { getAssignment, setExcluded, setFields };
 }
 
 function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
@@ -1563,7 +1561,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
-  const { getAssignment, setIncluded, setField } = useSpreadingState();
+  const { getAssignment, setExcluded, setFields } = useSpreadingState();
+  const parentMapRef = React.useRef({});
 
   useE(() => {
     fetch("coverage.json")
@@ -1571,6 +1570,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       .then(data => {
         setCoverageTree(data);
         data.forEach(root => seedAssignments(root));
+        parentMapRef.current = buildParentMap(data);
         const first = findFirstSelected(data);
         if (first) { setSelectedKindId(first.coverageKindId); setSelectedCov(first); }
       })
@@ -1578,25 +1578,46 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   }, []);
 
   function seedAssignments(cov) {
-    layers.forEach((layer, li) => {
+    layers.forEach((_, li) => {
       const key = cov.coverageKindId + "_" + li;
-      if (_spreadingAssignments[key] !== undefined) return; // already set (from LS or prior seed)
-      const match = (layer.coverages || []).find(c =>
-        cov.coverageName.includes(c.name) || c.name.includes(cov.coverageName) ||
-        cov.coverageName.replace(/[&(),]/g, "").trim().includes(c.name.replace(/[&(),]/g, "").trim())
-      );
-      if (match) {
-        _spreadingAssignments[key] = {
-          included: match.included,
-          limitOcc: match.limitOcc != null ? String(match.limitOcc) : "",
-          limitAgg: match.limitAgg != null ? String(match.limitAgg) : "",
-          deductible: match.deductible != null ? String(match.deductible) : "",
-        };
-      } else {
-        _spreadingAssignments[key] = { included: cov.selected, limitOcc: "", limitAgg: "", deductible: "" };
-      }
+      if (_spreadingAssignments[key] !== undefined) return;
+      _spreadingAssignments[key] = {
+        excluded: false,
+        sublimit: "",
+        sharedSublimit: "",
+        deductible: "",
+        retroDateYears: "",
+        indemnityPeriodValue: "",
+        indemnityPeriodUnit: "MONTH",
+        waitingPeriodValue: "",
+        waitingPeriodUnit: "HOUR",
+      };
     });
     (cov.children || []).forEach(child => seedAssignments(child));
+  }
+
+  function buildParentMap(items, parentId = null, map = {}) {
+    items.forEach(cov => {
+      if (parentId) map[cov.coverageKindId] = parentId;
+      if (cov.children?.length) buildParentMap(cov.children, cov.coverageKindId, map);
+    });
+    return map;
+  }
+
+  function isCascadeLocked(kindId, layerIdx, parentMap) {
+    // Primary layer is never locked
+    if (layerIdx === 0) return false;
+    // Rule A: any earlier excess layer excluded this coverage
+    for (let j = 1; j < layerIdx; j++) {
+      if (_spreadingAssignments[kindId + "_" + j]?.excluded === true) return true;
+    }
+    // Rule B: parent excluded in same layer (recurse up tree)
+    const parentId = parentMap[kindId];
+    if (parentId) {
+      if (_spreadingAssignments[parentId + "_" + layerIdx]?.excluded === true) return true;
+      if (isCascadeLocked(parentId, layerIdx, parentMap)) return true;
+    }
+    return false;
   }
 
   function findFirstSelected(items) {
