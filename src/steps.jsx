@@ -2222,11 +2222,18 @@ function useFdState() {
     _saveFdToLS(); notify();
   };
 
-  return { getDecision, setDecisionField, finalise, setBindDate };
+  const reset = (layers) => {
+    layers.forEach((_, li) => { delete _fdDecisions[li]; });
+    _fdFinalized = false;
+    _fdBindDate = "";
+    _saveFdToLS(); notify();
+  };
+
+  return { getDecision, setDecisionField, finalise, setBindDate, reset };
 }
 
 function FinalDecisionScreen({ layers }) {
-  const { getDecision, setDecisionField, finalise, setBindDate } = useFdState();
+  const { getDecision, setDecisionField, finalise, setBindDate, reset } = useFdState();
   const [collapsed, setCollapsed] = useS({});
   const [, forceRender] = useS(0);
 
@@ -2448,12 +2455,28 @@ function FinalDecisionScreen({ layers }) {
               All layers must have a decision before finalising
             </span>
           )}
+          <button
+            className="btn btn--outline"
+            style={{ marginLeft: "auto", fontSize: 12, color: "var(--fg-muted)" }}
+            onClick={() => reset(layers)}
+          >
+            <i className="fa-solid fa-rotate-left" style={{ marginRight: 6 }} />
+            Reset (demo)
+          </button>
         </div>
       ) : (
         <div className="fd-result-banner">
           <div className="fd-result-banner__title">
             <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
             Offer Finalised
+            <button
+              className="btn btn--outline"
+              style={{ marginLeft: "auto", fontSize: 11, color: "var(--fg-muted)" }}
+              onClick={() => reset(layers)}
+            >
+              <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
+              Reset (demo)
+            </button>
           </div>
           <div className="fd-policy-cards">
             {layers.map((layer, li) => {
