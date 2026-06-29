@@ -1658,7 +1658,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   }
 
   const countIncluded = (kindId) =>
-    layers.filter((_, li) => getAssignment(kindId, li)?.included).length;
+    layers.filter((_, li) => !getAssignment(kindId, li)?.excluded).length;
 
   const toggle = (kindId, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [kindId]: !c[kindId] })); };
   const selectCov = (cov) => { setSelectedKindId(cov.coverageKindId); setSelectedCov(cov); setPanelTarget(null); };
@@ -1675,7 +1675,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     if (!panelTarget || !selectedCov) return;
     const li = panelTarget.layerIdx;
     const key = selectedCov.coverageKindId + "_" + li;
-    _spreadingAssignments[key] = { ...panelDraft };
+    _spreadingAssignments[key] = { ..._spreadingAssignments[key], ...panelDraft };
     _saveSpreadingToLS();
     _spreadingListeners.forEach(fn => fn());
     setPanelTarget(null);
@@ -1688,7 +1688,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const TOWER_HEIGHT_PX = Math.max(280, layers.length * 80);
 
   const includedCount = selectedCov
-    ? layers.filter((_, li) => getAssignment(selectedCov.coverageKindId, li)?.included).length
+    ? layers.filter((_, li) => !getAssignment(selectedCov.coverageKindId, li)?.excluded).length
     : 0;
 
   if (!coverageTree) return <div className="main__title">Coverage Spreading (Cyber)</div>;
