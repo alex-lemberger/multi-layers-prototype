@@ -2404,8 +2404,8 @@ function FinalDecisionScreen({ layers }) {
                             className="fd-input"
                             type="number"
                             value={d.achievedPremium || ""}
-                            disabled={isFinalized || isDeclined}
-                            placeholder={isDeclined ? "—" : ""}
+                            disabled={isFinalized || !isAccepted}
+                            placeholder={!isAccepted ? "—" : ""}
                             onChange={e => setDecisionField(li, "achievedPremium", e.target.value)}
                           />
                         </td>
