@@ -589,6 +589,378 @@ function PremiumOverviewScreen({ layers, activeLayerIdx, onLayerChange }) {
   );
 }
 
+// ============================================================
+// Calculation / Adjustment Screens (layer-scoped)
+// ============================================================
+
+// Per-layer premium calculation data
+const CALC_DATA = {
+  0: { // Primary Layer
+    rows: [
+      { program: "General Liability Baseline", elBefore: 10435.4, techAdj: 10435.4, elPremium: 10435.4, volatility: 729.71, claimCosts: 2.97, adminCosts: 9.81, tpBefore: 12802.03, techPremium: 14224.48 },
+      { program: "Public Liability", elBefore: 435.4, techAdj: null, elPremium: 435.4, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 534.15, techPremium: 593.50 },
+      { program: "Employers Liability", elBefore: 10000, techAdj: 10000, elPremium: 10000, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 12267.89, techPremium: 13630.99 },
+    ],
+    tariff: [
+      { program: "General Liability Baseline", techPremium: 14224.48, loading: null, offeredPremium: 14224.48, walkAway: 10830.03, offeredHDI: 14224.48 },
+      { program: "Public Liability", techPremium: 593.50, loading: null, offeredPremium: 593.50, walkAway: null, offeredHDI: 593.50 },
+      { program: "Employers Liability", techPremium: 13630.99, loading: null, offeredPremium: 13630.99, walkAway: null, offeredHDI: 13630.99 },
+    ],
+    rates: [
+      { program: "General Liability Baseline", rateType: null, offeredPremium: 14224.48, usa: null, row: null, combined: 14224.48 },
+      { program: "Employers Liability", rateType: "Flat Premium", offeredPremium: 13630.99, usa: null, row: null, combined: 13630.99 },
+      { program: "Public Liability", rateType: "Flat Premium", offeredPremium: 593.50, usa: null, row: null, combined: 593.50 },
+    ],
+    calcStatus: { success: true, services: ["Globility-Service: 29/06/2026 - 16:22h", "ELC-Service: 29/06/2026 - 16:22h"] },
+  },
+  1: { // Excess Layer 1
+    rows: [
+      { program: "General Liability Baseline", elBefore: 6250.0, techAdj: 6250.0, elPremium: 6250.0, volatility: 437.83, claimCosts: 2.97, adminCosts: 9.81, tpBefore: 7681.22, techPremium: 8534.69 },
+      { program: "Public Liability", elBefore: 261.2, techAdj: null, elPremium: 261.2, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 320.49, techPremium: 356.10 },
+      { program: "Employers Liability", elBefore: 6000, techAdj: 6000, elPremium: 6000, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 7360.73, techPremium: 8178.59 },
+    ],
+    tariff: [
+      { program: "General Liability Baseline", techPremium: 8534.69, loading: null, offeredPremium: 8534.69, walkAway: 6498.02, offeredHDI: 8534.69 },
+      { program: "Public Liability", techPremium: 356.10, loading: null, offeredPremium: 356.10, walkAway: null, offeredHDI: 356.10 },
+      { program: "Employers Liability", techPremium: 8178.59, loading: null, offeredPremium: 8178.59, walkAway: null, offeredHDI: 8178.59 },
+    ],
+    rates: [
+      { program: "General Liability Baseline", rateType: null, offeredPremium: 8534.69, usa: null, row: null, combined: 8534.69 },
+      { program: "Employers Liability", rateType: "Flat Premium", offeredPremium: 8178.59, usa: null, row: null, combined: 8178.59 },
+      { program: "Public Liability", rateType: "Flat Premium", offeredPremium: 356.10, usa: null, row: null, combined: 356.10 },
+    ],
+    calcStatus: { success: true, services: ["Globility-Service: 29/06/2026 - 16:20h", "ELC-Service: 29/06/2026 - 16:20h"] },
+  },
+  2: { // Excess Layer 2
+    rows: [
+      { program: "General Liability Baseline", elBefore: 3125.0, techAdj: 3125.0, elPremium: 3125.0, volatility: 218.91, claimCosts: 2.97, adminCosts: 9.81, tpBefore: 3840.61, techPremium: 4267.35 },
+      { program: "Public Liability", elBefore: 130.6, techAdj: null, elPremium: 130.6, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 160.25, techPremium: 178.05 },
+      { program: "Employers Liability", elBefore: 3000, techAdj: 3000, elPremium: 3000, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 3680.37, techPremium: 4089.30 },
+    ],
+    tariff: [
+      { program: "General Liability Baseline", techPremium: 4267.35, loading: null, offeredPremium: 4267.35, walkAway: 3249.01, offeredHDI: 4267.35 },
+      { program: "Public Liability", techPremium: 178.05, loading: null, offeredPremium: 178.05, walkAway: null, offeredHDI: 178.05 },
+      { program: "Employers Liability", techPremium: 4089.30, loading: null, offeredPremium: 4089.30, walkAway: null, offeredHDI: 4089.30 },
+    ],
+    rates: [
+      { program: "General Liability Baseline", rateType: null, offeredPremium: 4267.35, usa: null, row: null, combined: 4267.35 },
+      { program: "Employers Liability", rateType: "Flat Premium", offeredPremium: 4089.30, usa: null, row: null, combined: 4089.30 },
+      { program: "Public Liability", rateType: "Flat Premium", offeredPremium: 178.05, usa: null, row: null, combined: 178.05 },
+    ],
+    calcStatus: { success: true, services: ["Globility-Service: 29/06/2026 - 16:18h", "ELC-Service: 29/06/2026 - 16:18h"] },
+  },
+};
+
+// Fallback for layers beyond the 3 hardcoded ones
+function getCalcData(layerIdx) {
+  if (CALC_DATA[layerIdx]) return CALC_DATA[layerIdx];
+  // Generate plausible data for additional layers
+  const factor = 0.5 / (layerIdx + 1);
+  const base = CALC_DATA[0];
+  return {
+    rows: base.rows.map(r => ({
+      ...r,
+      elBefore: r.elBefore ? +(r.elBefore * factor).toFixed(2) : null,
+      techAdj: r.techAdj ? +(r.techAdj * factor).toFixed(2) : null,
+      elPremium: r.elPremium ? +(r.elPremium * factor).toFixed(2) : null,
+      volatility: r.volatility ? +(r.volatility * factor).toFixed(2) : null,
+      tpBefore: r.tpBefore ? +(r.tpBefore * factor).toFixed(2) : null,
+      techPremium: r.techPremium ? +(r.techPremium * factor).toFixed(2) : null,
+    })),
+    tariff: base.tariff.map(r => ({
+      ...r,
+      techPremium: r.techPremium ? +(r.techPremium * factor).toFixed(2) : null,
+      offeredPremium: r.offeredPremium ? +(r.offeredPremium * factor).toFixed(2) : null,
+      walkAway: r.walkAway ? +(r.walkAway * factor).toFixed(2) : null,
+      offeredHDI: r.offeredHDI ? +(r.offeredHDI * factor).toFixed(2) : null,
+    })),
+    rates: base.rates.map(r => ({
+      ...r,
+      offeredPremium: r.offeredPremium ? +(r.offeredPremium * factor).toFixed(2) : null,
+      combined: r.combined ? +(r.combined * factor).toFixed(2) : null,
+    })),
+    calcStatus: { success: true, services: ["Globility-Service: 29/06/2026 - 16:15h"] },
+  };
+}
+
+function fmtCalcNum(n) {
+  if (n == null) return "";
+  // Match existing app: English locale, comma thousands, period decimal, up to 2 decimals
+  const val = Number(n);
+  const formatted = val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatted;
+}
+
+// ---- Premium Result Screen ----
+function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const activeLayer = layers[activeLayerIdx];
+  const data = getCalcData(activeLayerIdx);
+  const [calculating, setCalculating] = useS(false);
+
+  const totals = data.rows.reduce((acc, r) => ({
+    elBefore: acc.elBefore + (r.elBefore || 0),
+    techAdj: r.techAdj != null ? (acc.techAdj || 0) + r.techAdj : acc.techAdj,
+    elPremium: acc.elPremium + (r.elPremium || 0),
+    volatility: r.volatility != null ? (acc.volatility || 0) + r.volatility : acc.volatility,
+    claimCosts: r.claimCosts != null ? r.claimCosts : acc.claimCosts,
+    adminCosts: r.adminCosts != null ? r.adminCosts : acc.adminCosts,
+    tpBefore: acc.tpBefore + (r.tpBefore || 0),
+    techPremium: acc.techPremium + (r.techPremium || 0),
+  }), { elBefore: 0, techAdj: null, elPremium: 0, volatility: null, claimCosts: null, adminCosts: null, tpBefore: 0, techPremium: 0 });
+
+  const handleCalculate = () => {
+    setCalculating(true);
+    setTimeout(() => setCalculating(false), 1500);
+  };
+
+  return (
+    <div>
+      <div className="main__title">Premium Result <LayerBadge layer={activeLayer} /></div>
+
+      <div className="calc-table-wrap">
+        <table className="grid-tbl grid-tbl--calc">
+          <thead>
+            <tr>
+              <th style={{width: "16%"}}>Program Structure</th>
+              <th>Expected Loss<br/>Before Technical<br/>Adjustment</th>
+              <th>Technical Adjustment <span className="calc-info-icon"><i className="fa-solid fa-circle-info" /></span></th>
+              <th>Expected Loss<br/>Premium</th>
+              <th>Volatility<br/>Loading</th>
+              <th>Claim Costs<br/>in %</th>
+              <th>Admin Cost<br/>in %</th>
+              <th>TP Before<br/>Brokerage</th>
+              <th>Technical<br/>Premium</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r, i) => (
+              <tr key={i}>
+                <td className="t-strong">
+                  {i === 0 && <i className="fa-solid fa-chevron-up cov-chevron" style={{marginRight: 8}} />}
+                  {r.program}
+                </td>
+                <td className="t-mono">{fmtCalcNum(r.elBefore)}</td>
+                <td className="t-mono">{fmtCalcNum(r.techAdj)}</td>
+                <td className="t-mono">{fmtCalcNum(r.elPremium)}</td>
+                <td className="t-mono">{fmtCalcNum(r.volatility)}</td>
+                <td className="t-mono">{r.claimCosts != null ? r.claimCosts : ""}</td>
+                <td className="t-mono">{r.adminCosts != null ? r.adminCosts : ""}</td>
+                <td className="t-mono">{fmtCalcNum(r.tpBefore)}</td>
+                <td className="t-mono">{fmtCalcNum(r.techPremium)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="is-bold">
+              <td><i className="fa-solid fa-calculator" style={{marginRight: 8, fontSize: 12}} /> Total</td>
+              <td className="t-mono">{fmtCalcNum(totals.elBefore)}</td>
+              <td className="t-mono"></td>
+              <td className="t-mono">{fmtCalcNum(totals.elPremium)}</td>
+              <td className="t-mono">{fmtCalcNum(totals.volatility)}</td>
+              <td className="t-mono">{totals.claimCosts || ""}</td>
+              <td className="t-mono">{totals.adminCosts || ""}</td>
+              <td className="t-mono">{fmtCalcNum(totals.tpBefore)}</td>
+              <td className="t-mono">{fmtCalcNum(totals.techPremium)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div className="calc-footer">
+        <button className="btn btn--outline calc-btn" onClick={handleCalculate} disabled={calculating}>
+          {calculating ? <F><i className="fa-solid fa-spinner fa-spin" style={{marginRight: 8}} /> Calculating...</F> : "Calculate"}
+        </button>
+        {data.calcStatus.success && !calculating && (
+          <div className="calc-status">
+            <i className="fa-solid fa-check-circle" style={{color: "var(--accent)", fontSize: 18, marginRight: 10}} />
+            <div>
+              <div className="calc-status__title">Calculated successfully</div>
+              {data.calcStatus.services.map((s, i) => (
+                <div key={i} className="calc-status__service">{s}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Loading / Discounts Screen ----
+function LoadingDiscountsScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const activeLayer = layers[activeLayerIdx];
+  const data = getCalcData(activeLayerIdx);
+
+  const totals = data.tariff.reduce((acc, r) => ({
+    techPremium: acc.techPremium + (r.techPremium || 0),
+    offeredPremium: acc.offeredPremium + (r.offeredPremium || 0),
+    walkAway: r.walkAway != null ? (acc.walkAway || 0) + r.walkAway : acc.walkAway,
+    offeredHDI: acc.offeredHDI + (r.offeredHDI || 0),
+  }), { techPremium: 0, offeredPremium: 0, walkAway: null, offeredHDI: 0 });
+
+  return (
+    <div>
+      <div className="main__title">Loading / Discounts <LayerBadge layer={activeLayer} /></div>
+
+      <h2 className="calc-section-title">Tariff</h2>
+      <div className="calc-table-wrap">
+        <table className="grid-tbl grid-tbl--calc">
+          <thead>
+            <tr>
+              <th style={{width: "20%"}}>Program Structure</th>
+              <th>Technical Premium</th>
+              <th>Loading / Discount</th>
+              <th>Offered Premium <span className="calc-info-icon"><i className="fa-solid fa-circle-info" /></span></th>
+              <th>Walk Away Premium</th>
+              <th>Offered HDI Premium</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.tariff.map((r, i) => (
+              <tr key={i}>
+                <td className="t-strong">
+                  {i === 0 && <i className="fa-solid fa-chevron-up cov-chevron" style={{marginRight: 8}} />}
+                  {r.program}
+                </td>
+                <td className="t-mono">{fmtCalcNum(r.techPremium)}</td>
+                <td className="t-mono">{fmtCalcNum(r.loading)}</td>
+                <td className="t-mono">{fmtCalcNum(r.offeredPremium)}</td>
+                <td className="t-mono">{fmtCalcNum(r.walkAway)}</td>
+                <td className="t-mono">{fmtCalcNum(r.offeredHDI)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="is-bold">
+              <td><i className="fa-solid fa-calculator" style={{marginRight: 8, fontSize: 12}} /> Total</td>
+              <td className="t-mono">{fmtCalcNum(totals.techPremium)}</td>
+              <td></td>
+              <td className="t-mono">{fmtCalcNum(totals.offeredPremium)}</td>
+              <td className="t-mono">{fmtCalcNum(totals.walkAway)}</td>
+              <td className="t-mono">{fmtCalcNum(totals.offeredHDI)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---- Premium Rates Screen ----
+function PremiumRatesScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const activeLayer = layers[activeLayerIdx];
+  const data = getCalcData(activeLayerIdx);
+  const [panelIdx, setPanelIdx] = useS(null); // index into data.rates
+  const [draft, setDraft] = useS(null);
+
+  const openPanel = (idx) => {
+    setDraft({ ...data.rates[idx] });
+    setPanelIdx(idx);
+  };
+  const closePanel = () => { setPanelIdx(null); setDraft(null); };
+
+  return (
+    <div>
+      <div className="main__title">Premium Rates <LayerBadge layer={activeLayer} /></div>
+
+      <h2 className="calc-section-title">Please Select Rate / Flat Premium Option for Your Offer</h2>
+      <div className="calc-table-wrap">
+        <table className="grid-tbl grid-tbl--calc">
+          <thead>
+            <tr>
+              <th style={{width: "20%"}}>Program Structure</th>
+              <th>Premium Rate</th>
+              <th>Offered Premium</th>
+              <th>USA</th>
+              <th>ROW</th>
+              <th>Combined / ROW USA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rates.map((r, i) => (
+              <tr key={i}>
+                <td className="t-strong">
+                  {i === 0 && <i className="fa-solid fa-chevron-up cov-chevron" style={{marginRight: 8}} />}
+                  {r.program}
+                </td>
+                <td>
+                  {r.rateType ? (
+                    <span className="rate-chip" onClick={() => openPanel(i)}>
+                      {r.rateType}
+                      <button className="rate-chip__edit"><i className="fa-solid fa-pencil" /></button>
+                    </span>
+                  ) : <span className="t-muted">—</span>}
+                </td>
+                <td className="t-mono">{fmtCalcNum(r.offeredPremium)}</td>
+                <td className="t-mono">{fmtCalcNum(r.usa)}</td>
+                <td className="t-mono">{fmtCalcNum(r.row)}</td>
+                <td className="t-mono">{fmtCalcNum(r.combined)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button className="btn-add-row">
+        <i className="fa-solid fa-plus" /> Add group
+      </button>
+
+      {/* ---- Side Panel for editing rate ---- */}
+      {panelIdx !== null && draft && (
+        <div className="drawer-overlay" onClick={closePanel}>
+          <div className="drawer" onClick={e => e.stopPropagation()} style={{width: 440}}>
+            <div className="drawer__header">
+              <div className="drawer__title">Edit Premium Rate</div>
+              <button className="drawer__close" onClick={closePanel}><i className="fa-solid fa-xmark" /></button>
+            </div>
+            <div className="drawer__body">
+              <p style={{fontSize: 13, color: "var(--fg-muted)", marginBottom: 20}}>
+                Configure the premium rate for <strong>{draft.program}</strong> on <strong>{activeLayer.name}</strong>.
+              </p>
+              <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16}}>
+                <div style={{gridColumn: "1 / -1"}}>
+                  <div className="dfield__label" style={{marginBottom: 6}}>Rate Type</div>
+                  <select className="form-input form-select"
+                    value={draft.rateType || ""} onChange={e => setDraft(d => ({...d, rateType: e.target.value}))}>
+                    <option value="">— Select —</option>
+                    <option value="Flat Premium">Flat Premium</option>
+                    <option value="Rate per Mille">Rate per Mille</option>
+                    <option value="Rate per Cent">Rate per Cent</option>
+                    <option value="Burning Cost">Burning Cost</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="dfield__label" style={{marginBottom: 6}}>Offered Premium</div>
+                  <input className="form-input" type="number"
+                    value={draft.offeredPremium || ""} onChange={e => setDraft(d => ({...d, offeredPremium: Number(e.target.value)}))} />
+                </div>
+                <div>
+                  <div className="dfield__label" style={{marginBottom: 6}}>USA Split</div>
+                  <input className="form-input" type="number" placeholder="Optional"
+                    value={draft.usa || ""} onChange={e => setDraft(d => ({...d, usa: Number(e.target.value) || null}))} />
+                </div>
+                <div>
+                  <div className="dfield__label" style={{marginBottom: 6}}>ROW Split</div>
+                  <input className="form-input" type="number" placeholder="Optional"
+                    value={draft.row || ""} onChange={e => setDraft(d => ({...d, row: Number(e.target.value) || null}))} />
+                </div>
+                <div>
+                  <div className="dfield__label" style={{marginBottom: 6}}>Combined / ROW USA</div>
+                  <input className="form-input" type="number"
+                    value={draft.combined || ""} onChange={e => setDraft(d => ({...d, combined: Number(e.target.value)}))} />
+                </div>
+              </div>
+            </div>
+            <div className="drawer__footer">
+              <button className="btn btn--primary" onClick={closePanel}>Save Changes</button>
+              <button className="btn btn--outline" onClick={closePanel}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Overview / Sitemap screen ----
 const SAMPLE_OFFERS = [
   {

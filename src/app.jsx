@@ -151,17 +151,15 @@ const NAV_ITEMS_A = [
     { id: "layers-settings",      label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
-    // Property + Liability hidden until design team delivers screenshots:
-    // { id: "prop-define",       label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
-    // { id: "prop-limits",       label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
-    // { id: "liability-coverage",label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
-  { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
-  { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
-  { id: "loadings",           label: "Loadings / Discounts",icon: "fa-solid fa-tag",           status: "" },
+  { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
+    { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
+    { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
+    { id: "premium-rates",        label: "Premium Rates",       icon: "fa-solid fa-percent" },
+  ]},
   { id: "analysis",           label: "Analysis / Choice",   icon: "fa-solid fa-toolbox",       status: "" },
-  { id: "summary",            label: "Summary",             icon: "fa-solid fa-file-contract", status: "" },
+  { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
 // Variant B: Layers as workflow step (after Program Coverage, before Premium)
@@ -177,10 +175,12 @@ const NAV_ITEMS_B = [
     // { id: "prop-limits",       label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
     // { id: "liability-coverage",label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
-  { id: "risk-profile",       label: "Risk Profile",        icon: "fa-solid fa-sliders",       status: "" },
-  { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
-  { id: "premium-overview",   label: "Premium Overview",    icon: "fa-solid fa-table-columns", status: "" },
-  { id: "summary",            label: "Summary",             icon: "fa-solid fa-file-contract", status: "" },
+  { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
+    { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
+    { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
+    { id: "premium-rates",        label: "Premium Rates",       icon: "fa-solid fa-percent" },
+  ]},
+  { id: "analysis",           label: "Analysis / Choice",   icon: "fa-solid fa-toolbox",       status: "" },
   { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
@@ -541,10 +541,9 @@ function App() {
       case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "liability-coverage": return <LiabilityCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "program-coverage":   return <ProgramCoverageScreen layer={activeLayer} allLayers={layers} />;
-      case "risk-profile":       return <RiskProfileScreen layer={activeLayer} allLayers={layers} />;
-      case "technical-premium":  return <TechnicalPremiumScreen layer={activeLayer} allLayers={layers} />;
-      case "premium-overview":   return <PremiumOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
-      case "summary":            return <SummaryScreen layer={activeLayer} allLayers={layers} />;
+      case "premium-result":     return <PremiumResultScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "loading-discounts":  return <LoadingDiscountsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "premium-rates":      return <PremiumRatesScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "final-decision":     return <FinalDecisionScreen layers={layers} />;
       default:
         return (
