@@ -2500,87 +2500,105 @@ function FinalDecisionScreen({ layers }) {
         )}
       </div>
 
-      {/* ---- Edit panel (slides in from right) ---- */}
+      {/* ---- Edit panel (full-height overlay, same pattern as Coverage Spreading) ---- */}
       {panelLi !== null && panelLayer && draft && (
-        <div className="cst-tower-panel" style={{ flex: "0 0 360px", borderLeft: "1px solid var(--border)", background: "var(--bg-elev)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div className="drawer__header" style={{ borderBottom: "1px solid var(--border)", padding: "14px 20px" }}>
-            <div className="drawer__title" style={{ fontSize: 14 }}>
-              <span className={`ls-type-badge ls-type-badge--${(panelLayer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, marginRight: 8 }}>{panelLayer.type}</span>
-              {panelLayer.name}
-            </div>
-            <button className="drawer__close" onClick={closePanel}><i className="fa-solid fa-xmark" /></button>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
-            {/* Decision */}
-            <div style={{ marginBottom: 18 }}>
-              <div className="dfield__label" style={{ marginBottom: 6 }}>Decision</div>
-              <select
-                className={`fd-decision-select${draft.decision === "accepted" ? " fd-decision-select--accepted" : draft.decision === "declined" ? " fd-decision-select--declined" : ""}`}
-                style={{ width: "100%" }}
-                value={draft.decision || "offered"}
-                onChange={e => setDraft(d => ({ ...d, decision: e.target.value, achievedPremium: e.target.value !== "accepted" ? "" : d.achievedPremium }))}
-              >
-                <option value="offered">Offered</option>
-                <option value="accepted">✓ Accepted</option>
-                <option value="declined">✕ Declined</option>
-              </select>
-            </div>
-
-            {/* Type of Participation */}
-            <div style={{ marginBottom: 18 }}>
-              <div className="dfield__label" style={{ marginBottom: 6 }}>Type of Participation</div>
-              <input
-                className="fd-input"
-                value={draft.typeOfParticipation || ""}
-                onChange={e => setDraft(d => ({ ...d, typeOfParticipation: e.target.value }))}
-              />
-            </div>
-
-            {/* HDI Share % */}
-            <div style={{ marginBottom: 18 }}>
-              <div className="dfield__label" style={{ marginBottom: 6 }}>Final HDI Share %</div>
-              <input
-                className="fd-input"
-                style={{ width: 80 }}
-                type="number"
-                min="0" max="100"
-                value={draft.hdiSharePct || ""}
-                onChange={e => setDraft(d => ({ ...d, hdiSharePct: e.target.value }))}
-              />
-            </div>
-
-            {/* Lead Insurer */}
-            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
-              onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
-              <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`} style={{ flexShrink: 0 }}>
-                <div className="ls-toggle__thumb" />
+        <div className="cst-panel-overlay" onClick={closePanel}>
+          <div className="cst-panel" onClick={e => e.stopPropagation()}>
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__layer">
+                  <span className={`ls-type-badge ls-type-badge--${(panelLayer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, marginRight: 6 }}>{panelLayer.type}</span>
+                  {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}
+                </span>
+                <span className="cst-panel__cov">{panelLayer.name}</span>
+                <span className="cst-panel__range">{panelLayer.product}</span>
               </div>
-              <span style={{ fontSize: 13 }}>Lead Insurer</span>
+              <button className="drawer__close" onClick={closePanel}>
+                <i className="fa-solid fa-xmark" />
+              </button>
             </div>
 
-            {/* Achieved Premium — only if Accepted */}
-            {draftIsAccepted && (
-              <div style={{ marginBottom: 18 }}>
-                <div className="dfield__label" style={{ marginBottom: 6 }}>Achieved Premium (€)</div>
+            <div className="cst-panel__body">
+              {/* Decision */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Decision</span>
+                <select
+                  className={`fd-decision-select${draft.decision === "accepted" ? " fd-decision-select--accepted" : draft.decision === "declined" ? " fd-decision-select--declined" : ""}`}
+                  style={{ width: "100%", padding: "9px 12px", fontSize: 13 }}
+                  value={draft.decision || "offered"}
+                  onChange={e => setDraft(d => ({ ...d, decision: e.target.value, achievedPremium: e.target.value !== "accepted" ? "" : d.achievedPremium }))}
+                >
+                  <option value="offered">Offered</option>
+                  <option value="accepted">✓ Accepted</option>
+                  <option value="declined">✕ Declined</option>
+                </select>
+              </div>
+
+              {/* Type of Participation */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Type of Participation</span>
                 <input
-                  className="fd-input"
-                  type="number"
-                  value={draft.achievedPremium || ""}
-                  onChange={e => setDraft(d => ({ ...d, achievedPremium: e.target.value }))}
+                  className="cst-panel-input"
+                  placeholder="e.g. 100% direct business"
+                  value={draft.typeOfParticipation || ""}
+                  onChange={e => setDraft(d => ({ ...d, typeOfParticipation: e.target.value }))}
                 />
-                {draft.achievedPremium && draft.hdiSharePct && (
-                  <div style={{ fontSize: 11, color: "var(--fg-muted)", marginTop: 6 }}>
-                    Achieved HDI Premium: {fmtEUR(Math.round(Number(draft.achievedPremium) * Number(draft.hdiSharePct) / 100))}
-                  </div>
-                )}
               </div>
-            )}
-          </div>
 
-          <div className="drawer__footer" style={{ borderTop: "1px solid var(--border)", padding: "12px 20px" }}>
-            <button className="btn btn--primary" onClick={savePanel}>Save</button>
-            <button className="btn btn--outline" onClick={closePanel}>Cancel</button>
+              {/* Final HDI Share % */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Final HDI Share %</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    className="cst-panel-input"
+                    style={{ width: 100 }}
+                    type="number"
+                    min="0" max="100"
+                    placeholder="e.g. 100"
+                    value={draft.hdiSharePct || ""}
+                    onChange={e => setDraft(d => ({ ...d, hdiSharePct: e.target.value }))}
+                  />
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>%</span>
+                </div>
+              </div>
+
+              {/* Lead Insurer toggle */}
+              <div className="cst-panel__include-row" style={{ cursor: "pointer" }}
+                onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
+                <span className="cst-panel__include-label">Lead Insurer</span>
+                <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`}>
+                  <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                </div>
+              </div>
+
+              {/* Achieved Premium — only if Accepted */}
+              {draftIsAccepted && (
+                <div className="cst-panel__field">
+                  <span className="cst-panel__field-label">Achieved Premium</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
+                    <input
+                      className="cst-panel-input"
+                      style={{ flex: 1 }}
+                      type="number"
+                      placeholder="e.g. 55,000"
+                      value={draft.achievedPremium || ""}
+                      onChange={e => setDraft(d => ({ ...d, achievedPremium: e.target.value }))}
+                    />
+                  </div>
+                  {draft.achievedPremium && draft.hdiSharePct && (
+                    <span className="cst-panel__field-hint">
+                      Achieved HDI Premium: {fmtEUR(Math.round(Number(draft.achievedPremium) * Number(draft.hdiSharePct) / 100))}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={savePanel}>Save</button>
+              <button className="btn btn--outline" onClick={closePanel}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
