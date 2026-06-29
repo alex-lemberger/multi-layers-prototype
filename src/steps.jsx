@@ -1820,17 +1820,11 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   if (isActive) blockClass += " cst-layer-block--active";
                   if (!isLocked) blockClass += " cst-layer-block--readonly";
 
-                  const handleBlockClick = () => {
-                    if (isLocked) return;
-                    openPanel(li);
-                  };
-
                   return (
                     <div
                       key={layer.id}
                       className={blockClass}
                       style={{ minHeight: blockHeight, outline: isPanelOpen ? "2px solid var(--accent)" : undefined }}
-                      onClick={handleBlockClick}
                     >
                       <div className="cst-block-head">
                         <span
@@ -1848,21 +1842,28 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                           {layer.name}
                         </span>
                         <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
+                        <span className={`cst-block-status-badge cst-block-status-badge--${isLocked ? "locked" : isExcluded ? "excluded" : "included"}`}>
+                          {isLocked ? "Locked" : isExcluded ? "Excluded" : "Included"}
+                        </span>
 
-                        {/* Panel mode: edit / restore hint icon (not on locked) */}
+                        {/* Panel open/close — pencil icon only */}
                         {!isLocked && (
-                          <span style={{ fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)", flexShrink: 0 }}>
+                          <button
+                            className="cst-block-edit-btn"
+                            title={isExcluded ? "Restore / configure" : "Edit coverage assignment"}
+                            onClick={e => { e.stopPropagation(); isPanelOpen ? setPanelTarget(null) : openPanel(li); }}
+                          >
                             {isExcluded
                               ? <i className="fa-solid fa-rotate-left" />
                               : <i className="fa-solid fa-pencil" />
                             }
-                          </span>
+                          </button>
                         )}
                       </div>
 
                       {/* Panel: read-only value summary for included non-locked blocks */}
                       {!isExcluded && !isLocked && (
-                        <div className="cst-block-val-row" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
+                        <div className="cst-block-val-row">
                           <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{assignment.sublimit ? fmtEUR(Number(assignment.sublimit)) : "—"}</span></span>
                           <span><span className="cst-val-label">Shared Sublimit </span><span className="cst-val-num">{assignment.sharedSublimit ? fmtEUR(Number(assignment.sharedSublimit)) : "—"}</span></span>
                           <span><span className="cst-val-label">Deductible </span><span className="cst-val-num">{assignment.deductible ? fmtEUR(Number(assignment.deductible)) : "—"}</span></span>
@@ -1872,14 +1873,16 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                         </div>
                       )}
 
-                      {/* Status text for excluded and locked blocks */}
+                      {/* Excluded (not locked) — empty body spacer */}
                       {isExcluded && !isLocked && (
-                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
-                          Excluded — click to configure
-                        </span>
+                        <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--fg-faint)" }}>
+                          Not assigned to this layer
+                        </div>
                       )}
+
+                      {/* Status text for locked blocks */}
                       {isLocked && (
-                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
+                        <span style={{ fontSize: 12, color: "var(--fg-faint)", padding: "10px 16px", display: "block" }}>
                           Excluded by cascade
                         </span>
                       )}
@@ -1896,7 +1899,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   Locked by cascade
                 </span>
                 <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
-                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click any block to open panel
+                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Use pencil icon to configure a layer block
                 </span>
               </div>
             </>
@@ -1906,8 +1909,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
       {/* ---- Edit Panel ---- */}
       {panelTarget !== null && panelLayer && selectedCov && (
-        <div className="cst-panel-overlay" onClick={() => setPanelTarget(null)}>
-          <div className="cst-panel" onClick={e => e.stopPropagation()}>
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
             <div className="cst-panel__header">
               <div className="cst-panel__titles">
                 <span className="cst-panel__layer">{panelLayer.name} · {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
@@ -2502,8 +2505,8 @@ function FinalDecisionScreen({ layers }) {
 
       {/* ---- Edit panel (full-height overlay, same pattern as Coverage Spreading) ---- */}
       {panelLi !== null && panelLayer && draft && (
-        <div className="cst-panel-overlay" onClick={closePanel}>
-          <div className="cst-panel" onClick={e => e.stopPropagation()}>
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
             <div className="cst-panel__header">
               <div className="cst-panel__titles">
                 <span className="cst-panel__layer">{(panelLayer.type || "Excess").toUpperCase()} · {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
