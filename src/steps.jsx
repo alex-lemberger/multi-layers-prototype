@@ -1557,7 +1557,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [selectedKindId, setSelectedKindId] = useS(null);
   const [selectedCov, setSelectedCov] = useS(null);
   const [filter, setFilter] = useS("");
-  const [editMode, setEditMode] = useS("inline"); // "inline" | "panel"
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
@@ -1771,28 +1770,13 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             </div>
           ) : (
             <>
-              {/* Header: coverage title + stats + mode toggle */}
+              {/* Header: coverage title + stats */}
               <div className="cst-tower-header">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
                   <span className="cst-tower-header__stats">
                     {includedCount} of {layers.length} {includedCount === 1 ? "layer" : "layers"} included
                   </span>
-                </div>
-                {/* Mode toggle */}
-                <div className="cst-mode-toggle">
-                  <button
-                    className={`cst-mode-btn${editMode === "inline" ? " cst-mode-btn--active" : ""}`}
-                    onClick={() => { setEditMode("inline"); setPanelTarget(null); }}
-                  >
-                    <i className="fa-solid fa-pen-to-square" style={{ fontSize: 11 }} /> Inline
-                  </button>
-                  <button
-                    className={`cst-mode-btn${editMode === "panel" ? " cst-mode-btn--active" : ""}`}
-                    onClick={() => { setEditMode("panel"); setPanelTarget(null); }}
-                  >
-                    <i className="fa-solid fa-table-columns" style={{ fontSize: 11 }} /> Edit Panel
-                  </button>
                 </div>
               </div>
 
@@ -1814,10 +1798,10 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   else if (isExcluded) blockClass += " cst-layer-block--excluded";
                   else blockClass += " cst-layer-block--included";
                   if (isActive) blockClass += " cst-layer-block--active";
-                  if (editMode === "panel" && !isLocked) blockClass += " cst-layer-block--readonly";
+                  if (!isLocked) blockClass += " cst-layer-block--readonly";
 
                   const handleBlockClick = () => {
-                    if (editMode !== "panel" || isLocked) return;
+                    if (isLocked) return;
                     if (isExcluded) { setExcluded(selectedCov.coverageKindId, li, false); return; }
                     openPanel(li);
                   };
@@ -1846,28 +1830,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                         </span>
                         <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
 
-                        {/* Primary: always-included badge */}
-                        {editMode === "inline" && isPrimary && (
-                          <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--fg-faint)", display: "flex", alignItems: "center", gap: 4 }}>
-                            <i className="fa-solid fa-lock" style={{ fontSize: 10 }} /> Always included
-                          </span>
-                        )}
-
-                        {/* Excess inline: exclude / restore toggle (only when not locked) */}
-                        {editMode === "inline" && !isPrimary && !isLocked && (
-                          <button
-                            className={`cst-assign-btn ${isExcluded ? "cst-assign-btn--off" : "cst-assign-btn--exclude"}`}
-                            onClick={e => { e.stopPropagation(); setExcluded(selectedCov.coverageKindId, li, !isExcluded); }}
-                          >
-                            {isExcluded
-                              ? <><i className="fa-solid fa-plus" style={{ fontSize: 10 }} /> Restore</>
-                              : <><i className="fa-regular fa-circle-xmark" style={{ fontSize: 11 }} /> Exclude</>
-                            }
-                          </button>
-                        )}
-
                         {/* Panel mode: edit / restore hint icon (not on locked) */}
-                        {editMode === "panel" && !isLocked && (
+                        {!isLocked && (
                           <span style={{ marginLeft: "auto", fontSize: 12, color: isPanelOpen ? "var(--accent)" : "var(--fg-faint)" }}>
                             {isExcluded
                               ? <i className="fa-solid fa-rotate-left" />
@@ -1877,35 +1841,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                         )}
                       </div>
 
-                      {/* Inline: compact inputs for included non-locked blocks */}
-                      {editMode === "inline" && !isExcluded && !isLocked && (
-                        <div className="cst-block-inputs">
-                          <div className="cst-input-group">
-                            <span className="cst-input-label">Sublimit</span>
-                            <input className="cst-input" placeholder="€"
-                              value={assignment.sublimit || ""}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => setFields(selectedCov.coverageKindId, li, { sublimit: e.target.value })} />
-                          </div>
-                          <div className="cst-input-group">
-                            <span className="cst-input-label">Ded</span>
-                            <input className="cst-input" placeholder="€"
-                              value={assignment.deductible || ""}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => setFields(selectedCov.coverageKindId, li, { deductible: e.target.value })} />
-                          </div>
-                          <div className="cst-input-group">
-                            <span className="cst-input-label">Retro</span>
-                            <input className="cst-input" placeholder="yrs"
-                              value={assignment.retroDateYears || ""}
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => setFields(selectedCov.coverageKindId, li, { retroDateYears: e.target.value })} />
-                          </div>
-                        </div>
-                      )}
-
                       {/* Panel: read-only value summary for included non-locked blocks */}
-                      {editMode === "panel" && !isExcluded && !isLocked && (
+                      {!isExcluded && !isLocked && (
                         <div className="cst-block-val-row" style={{ marginTop: 6 }}>
                           {assignment.sublimit && <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{fmtEUR(Number(assignment.sublimit))}</span></span>}
                           {assignment.deductible && <span><span className="cst-val-label">Ded </span><span className="cst-val-num">{fmtEUR(Number(assignment.deductible))}</span></span>}
@@ -1917,14 +1854,9 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                       )}
 
                       {/* Status text for excluded and locked blocks */}
-                      {isExcluded && !isLocked && editMode === "panel" && (
+                      {isExcluded && !isLocked && (
                         <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
                           Excluded — click to restore
-                        </span>
-                      )}
-                      {isExcluded && !isLocked && editMode === "inline" && (
-                        <span style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4, display: "block" }}>
-                          Excluded from this layer
                         </span>
                       )}
                       {isLocked && (
@@ -1939,20 +1871,22 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
               <div className="lc-legend" style={{ marginTop: 16 }}>
                 <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included</span>
-                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Not included</span>
-                {editMode === "panel" && (
-                  <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
-                    <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click a block to open edit panel
-                  </span>
-                )}
+                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Excluded</span>
+                <span className="lc-legend__item">
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#e0e0e0", marginRight: 5 }} />
+                  Locked by cascade
+                </span>
+                <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
+                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Click included block to edit · Click excluded to restore
+                </span>
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* ---- Edit Panel (panel mode only) ---- */}
-      {editMode === "panel" && panelTarget !== null && panelLayer && selectedCov && (
+      {/* ---- Edit Panel ---- */}
+      {panelTarget !== null && panelLayer && selectedCov && (
         <div className="cst-panel-overlay" onClick={() => setPanelTarget(null)}>
           <div className="cst-panel" onClick={e => e.stopPropagation()}>
             <div className="cst-panel__header">
