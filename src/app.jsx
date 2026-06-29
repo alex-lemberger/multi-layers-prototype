@@ -452,6 +452,14 @@ function App() {
   const [deleteTarget, setDeleteTarget] = useState_app(null);
   const [copyTarget, setCopyTarget] = useState_app(null);
   const [editTarget, setEditTarget] = useState_app(null);
+  const [, setFdTick] = useState_app(0);
+
+  // Subscribe to Final Decision state changes so partner banner Achieved Premium stays live
+  useEffect_app(() => {
+    const sub = () => setFdTick(t => t + 1);
+    _fdListeners.push(sub);
+    return () => { _fdListeners = _fdListeners.filter(f => f !== sub); };
+  }, []);
 
   const NAV_ITEMS = variant === "A" ? NAV_ITEMS_A : NAV_ITEMS_B;
 
