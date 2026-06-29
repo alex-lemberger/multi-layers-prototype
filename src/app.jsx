@@ -181,6 +181,7 @@ const NAV_ITEMS_B = [
   { id: "technical-premium",  label: "Technical Premium",   icon: "fa-solid fa-pen-ruler",     status: "" },
   { id: "premium-overview",   label: "Premium Overview",    icon: "fa-solid fa-table-columns", status: "" },
   { id: "summary",            label: "Summary",             icon: "fa-solid fa-file-contract", status: "" },
+  { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
 // ---- Default layered screens (which screens get layer-scoped data) ----
@@ -536,6 +537,7 @@ function App() {
       case "technical-premium":  return <TechnicalPremiumScreen layer={activeLayer} allLayers={layers} />;
       case "premium-overview":   return <PremiumOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "summary":            return <SummaryScreen layer={activeLayer} allLayers={layers} />;
+      case "final-decision":     return <FinalDecisionScreen layers={layers} />;
       default:
         return (
           <div>
@@ -675,6 +677,15 @@ function App() {
                 <i className="fa-solid fa-clock" />
                 <span className="meta-item__label">Last modified:</span>
                 <span className="meta-item__value meta-item__value--mono">18.06.2026</span>
+              </span>
+              <span className="meta-item">
+                <i className="fa-solid fa-coins" />
+                <span className="meta-item__label">Achieved Premium:</span>
+                <span className="meta-item__value meta-item__value--mono">
+                  {fmtEUR(Object.values(_fdDecisions).reduce((s, d) =>
+                    s + (d?.decision === "accepted" ? Number(d?.achievedPremium || 0) : 0)
+                  , 0))}
+                </span>
               </span>
             </div>
           </div>
