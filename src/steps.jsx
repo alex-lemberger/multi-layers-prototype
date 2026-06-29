@@ -1976,6 +1976,18 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
             <div className="cst-panel__footer">
               <button className="btn btn--primary" onClick={savePanel}>Save</button>
+              {panelTarget && layers[panelTarget.layerIdx]?.type !== "Primary" && (
+                <button
+                  className="btn btn--outline"
+                  style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }}
+                  onClick={() => {
+                    setExcluded(selectedCov.coverageKindId, panelTarget.layerIdx, true);
+                    setPanelTarget(null);
+                  }}
+                >
+                  Exclude from layer
+                </button>
+              )}
               <button className="btn btn--outline" onClick={() => setPanelTarget(null)}>Cancel</button>
             </div>
           </div>
