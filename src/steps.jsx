@@ -2942,6 +2942,336 @@ function CoverageSpreadingV2Screen({ layers, activeLayerIdx, onLayerChange }) {
   );
 }
 
+// =========================================================================
+// COVERAGE SPREADING V3 — Layer-first navigation (tab per layer, full tree below)
+// =========================================================================
+function CoverageSpreadingV3Screen({ layers, activeLayerIdx, onLayerChange }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const [collapsed, setCollapsed] = useS({});
+  const [filter, setFilter] = useS("");
+  const [expandedKindId, setExpandedKindId] = useS(null); // accordion: which node is editing
+  const [editDraft, setEditDraft] = useS({});
+  const [inheritToExcess, setInheritToExcess] = useS(false);
+  const { getAssignment, setExcluded, setFields } = useSpreadingState();
+  const parentMapRef = React.useRef({});
+
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => {
+        setCoverageTree(data);
+        data.forEach(root => seedV3(root));
+        parentMapRef.current = buildParentMapV3(data);
+      })
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  function seedV3(cov) {
+    layers.forEach((_, li) => {
+      const key = cov.coverageKindId + "_" + li;
+      if (_spreadingAssignments[key] !== undefined) return;
+      _spreadingAssignments[key] = {
+        excluded: false, sublimit: "", sharedSublimit: "", deductible: "",
+        retroDateYears: "", indemnityPeriodValue: "", indemnityPeriodUnit: "MONTH",
+        waitingPeriodValue: "", waitingPeriodUnit: "HOUR",
+      };
+    });
+    (cov.children || []).forEach(child => seedV3(child));
+  }
+
+  function buildParentMapV3(items, parentId = null, map = {}) {
+    items.forEach(cov => {
+      if (parentId) map[cov.coverageKindId] = parentId;
+      if (cov.children?.length) buildParentMapV3(cov.children, cov.coverageKindId, map);
+    });
+    return map;
+  }
+
+  function isCascadeLockedV3(kindId, layerIdx, parentMap) {
+    if (layerIdx === 0) return false;
+    for (let j = 1; j < layerIdx; j++) {
+      if (_spreadingAssignments[kindId + "_" + j]?.excluded === true) return true;
+    }
+    const parentId = parentMap[kindId];
+    if (parentId) {
+      if (_spreadingAssignments[parentId + "_" + layerIdx]?.excluded === true) return true;
+      if (isCascadeLockedV3(parentId, layerIdx, parentMap)) return true;
+    }
+    return false;
+  }
+
+  const getStatus = (kindId, li) => {
+    if (li > 0 && isCascadeLockedV3(kindId, li, parentMapRef.current)) return "locked";
+    const a = getAssignment(kindId, li);
+    if (a?.excluded) return "excluded";
+    return "included";
+  };
+
+  const toggleCollapse = (kindId, e) => {
+    e.stopPropagation();
+    setCollapsed(c => ({ ...c, [kindId]: !c[kindId] }));
+  };
+
+  // Toggle include/exclude for current layer
+  const toggleExclude = (kindId, e) => {
+    e.stopPropagation();
+    const status = getStatus(kindId, activeLayerIdx);
+    if (status === "locked") return;
+    const a = getAssignment(kindId, activeLayerIdx);
+    setExcluded(kindId, activeLayerIdx, !(a?.excluded));
+  };
+
+  // Accordion: open/close edit form
+  const toggleAccordion = (kindId) => {
+    if (expandedKindId === kindId) {
+      setExpandedKindId(null);
+    } else {
+      const a = getAssignment(kindId, activeLayerIdx) || {};
+      setEditDraft({
+        sublimit: a.sublimit || "", sharedSublimit: a.sharedSublimit || "",
+        deductible: a.deductible || "", retroDateYears: a.retroDateYears || "",
+        indemnityPeriodValue: a.indemnityPeriodValue || "", indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
+        waitingPeriodValue: a.waitingPeriodValue || "", waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
+      });
+      setExpandedKindId(kindId);
+      setInheritToExcess(false);
+    }
+  };
+
+  // Save accordion form
+  const saveAccordion = () => {
+    if (!expandedKindId) return;
+    const fields = { ...editDraft };
+    const key = expandedKindId + "_" + activeLayerIdx;
+    _spreadingAssignments[key] = { ...(_spreadingAssignments[key] || {}), ...fields };
+    if (inheritToExcess && activeLayerIdx === 0) {
+      layers.forEach((_, li) => {
+        if (li === 0) return;
+        const k = expandedKindId + "_" + li;
+        _spreadingAssignments[k] = { ...(_spreadingAssignments[k] || {}), ...fields };
+      });
+    }
+    _saveSpreadingToLS();
+    _spreadingListeners.forEach(fn => fn());
+    setExpandedKindId(null);
+  };
+
+  function hasDescV3(cov, f) {
+    if (!f || !cov.children) return false;
+    return cov.children.some(c => c.coverageName.toLowerCase().includes(f.toLowerCase()) || hasDescV3(c, f));
+  }
+
+  const flattenTree = (items, depth) => {
+    const rows = [];
+    items.forEach(cov => {
+      const hasChildren = cov.children && cov.children.length > 0;
+      const matchesFilter = !filter || cov.coverageName.toLowerCase().includes(filter.toLowerCase());
+      const descendantMatches = hasChildren && hasDescV3(cov, filter);
+      if (filter && !matchesFilter && !descendantMatches) return;
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId] });
+      if (hasChildren && !collapsed[cov.coverageKindId]) {
+        rows.push(...flattenTree(cov.children, depth + 1));
+      }
+    });
+    return rows;
+  };
+
+  const treeRows = coverageTree ? flattenTree(coverageTree, 0) : [];
+  const activeLayer = layers[activeLayerIdx];
+
+  if (!coverageTree) return <div className="main__title">Coverage Spreading V3 (Cyber)</div>;
+
+  // Summary counts for current layer
+  const includedCount = treeRows.filter(r => getStatus(r.cov.coverageKindId, activeLayerIdx) === "included").length;
+  const excludedCount = treeRows.filter(r => getStatus(r.cov.coverageKindId, activeLayerIdx) === "excluded").length;
+  const lockedCount = treeRows.filter(r => getStatus(r.cov.coverageKindId, activeLayerIdx) === "locked").length;
+
+  return (
+    <div className="csv3-root">
+      <div className="main__title">Coverage Spreading V3 (Cyber)</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Select a layer to configure its coverage assignments. Each tab shows the full tree for that layer.
+      </p>
+
+      {/* Layer tabs */}
+      <div className="csv3-layer-tabs">
+        {layers.map((l, li) => (
+          <button
+            key={li}
+            className={`csv3-tab${li === activeLayerIdx ? " csv3-tab--active" : ""}`}
+            onClick={() => { onLayerChange(li); setExpandedKindId(null); }}
+          >
+            <span className={`csv3-tab__type csv3-tab__type--${l.type.toLowerCase()}`}>
+              {l.type === "Primary" ? "P" : `XS${li}`}
+            </span>
+            <span className="csv3-tab__name">{l.name}</span>
+            <span className="csv3-tab__range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Summary bar */}
+      <div className="csv3-summary-bar">
+        <span className="csv3-summary-item csv3-summary-item--included">
+          <i className="fa-solid fa-circle-check" /> {includedCount} included
+        </span>
+        <span className="csv3-summary-item csv3-summary-item--excluded">
+          <i className="fa-solid fa-circle-xmark" /> {excludedCount} excluded
+        </span>
+        {lockedCount > 0 && (
+          <span className="csv3-summary-item csv3-summary-item--locked">
+            <i className="fa-solid fa-lock" /> {lockedCount} inherited
+          </span>
+        )}
+        <span className="csv3-summary-spacer" />
+        <div className="pc-search" style={{ minWidth: 0, maxWidth: 220 }}>
+          <i className="fa-solid fa-magnifying-glass" />
+          <input type="text" placeholder="Filter coverages…" value={filter} onChange={e => setFilter(e.target.value)} />
+        </div>
+      </div>
+
+      {/* Coverage tree for active layer */}
+      <div className="csv3-tree">
+        {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => {
+          const kindId = cov.coverageKindId;
+          const status = getStatus(kindId, activeLayerIdx);
+          const isExpanded = expandedKindId === kindId;
+          const assignment = getAssignment(kindId, activeLayerIdx) || {};
+          const hasSublimit = assignment.sublimit && Number(assignment.sublimit) > 0;
+          const hasDeductible = assignment.deductible && Number(assignment.deductible) > 0;
+
+          return (
+            <React.Fragment key={kindId}>
+              <div
+                className={`csv3-row csv3-row--${status}${isExpanded ? " csv3-row--expanded" : ""}`}
+                style={{ paddingLeft: 16 + depth * 24 }}
+              >
+                {/* Expand/collapse tree */}
+                {hasChildren ? (
+                  <button className="ct-chevron" onClick={e => toggleCollapse(kindId, e)}>
+                    <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                  </button>
+                ) : (
+                  <span style={{ width: 20, flexShrink: 0 }} />
+                )}
+
+                {/* Include/Exclude toggle pill */}
+                <button
+                  className={`csv3-toggle csv3-toggle--${status}`}
+                  onClick={e => toggleExclude(kindId, e)}
+                  disabled={status === "locked"}
+                  title={status === "locked" ? "Inherited from parent/earlier layer" : status === "excluded" ? "Click to include" : "Click to exclude"}
+                >
+                  {status === "included" && <i className="fa-solid fa-check" style={{ fontSize: 9 }} />}
+                  {status === "excluded" && <i className="fa-solid fa-xmark" style={{ fontSize: 9 }} />}
+                  {status === "locked" && <i className="fa-solid fa-lock" style={{ fontSize: 8 }} />}
+                </button>
+
+                {/* Coverage name */}
+                <span className="csv3-row__name">{cov.coverageName}</span>
+
+                {/* Inline field summary (when included and has values) */}
+                {status === "included" && (hasSublimit || hasDeductible) && (
+                  <span className="csv3-row__summary">
+                    {hasSublimit && <span className="csv3-tag">Lim: {fmtEUR(Number(assignment.sublimit))}</span>}
+                    {hasDeductible && <span className="csv3-tag">Ded: {fmtEUR(Number(assignment.deductible))}</span>}
+                  </span>
+                )}
+
+                {/* Status label for locked/excluded */}
+                {status === "locked" && <span className="csv3-row__status csv3-row__status--locked">Inherited</span>}
+
+                {/* Edit button (only for included coverages) */}
+                {status === "included" && (
+                  <button
+                    className={`csv3-edit-btn${isExpanded ? " csv3-edit-btn--active" : ""}`}
+                    onClick={e => { e.stopPropagation(); toggleAccordion(kindId); }}
+                    title="Configure coverage"
+                  >
+                    <i className={`fa-solid fa-${isExpanded ? "chevron-up" : "pen"}`} style={{ fontSize: 11 }} />
+                  </button>
+                )}
+              </div>
+
+              {/* Accordion edit form */}
+              {isExpanded && status === "included" && (
+                <div className="csv3-accordion" style={{ marginLeft: 16 + depth * 24 + 20 }}>
+                  <div className="csv3-accordion__grid">
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Sublimit</label>
+                      <input className="form-input" type="number" placeholder="—"
+                        value={editDraft.sublimit} onChange={e => setEditDraft(d => ({ ...d, sublimit: e.target.value }))} />
+                    </div>
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Shared Sublimit</label>
+                      <input className="form-input" type="number" placeholder="—"
+                        value={editDraft.sharedSublimit} onChange={e => setEditDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
+                    </div>
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Deductible</label>
+                      <input className="form-input" type="number" placeholder="—"
+                        value={editDraft.deductible} onChange={e => setEditDraft(d => ({ ...d, deductible: e.target.value }))} />
+                    </div>
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Retro Date (Years)</label>
+                      <input className="form-input" type="number" placeholder="—"
+                        value={editDraft.retroDateYears} onChange={e => setEditDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
+                    </div>
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Indemnity Period</label>
+                      <div className="csv3-field__combo">
+                        <input className="form-input" type="number" placeholder="—" style={{ flex: 1 }}
+                          value={editDraft.indemnityPeriodValue} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
+                        <select className="form-input form-select" style={{ width: 90 }}
+                          value={editDraft.indemnityPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
+                          <option value="MONTH">Months</option>
+                          <option value="HOUR">Hours</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="csv3-field">
+                      <label className="csv3-field__label">Waiting Period</label>
+                      <div className="csv3-field__combo">
+                        <input className="form-input" type="number" placeholder="—" style={{ flex: 1 }}
+                          value={editDraft.waitingPeriodValue} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
+                        <select className="form-input form-select" style={{ width: 90 }}
+                          value={editDraft.waitingPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
+                          <option value="MONTH">Months</option>
+                          <option value="HOUR">Hours</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inherit toggle (only on Primary layer) */}
+                  {activeLayerIdx === 0 && (
+                    <label className="csv3-inherit-toggle">
+                      <input type="checkbox" checked={inheritToExcess} onChange={e => setInheritToExcess(e.target.checked)} />
+                      <span>Apply values to all excess layers on save</span>
+                    </label>
+                  )}
+
+                  <div className="csv3-accordion__actions">
+                    <button className="btn btn--primary" onClick={saveAccordion}>Save</button>
+                    <button className="btn btn--outline" onClick={() => setExpandedKindId(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="csv3-legend">
+        <span className="csv3-legend__item"><span className="csv3-toggle csv3-toggle--included" style={{ width: 16, height: 16 }}><i className="fa-solid fa-check" style={{ fontSize: 8 }} /></span> Included</span>
+        <span className="csv3-legend__item"><span className="csv3-toggle csv3-toggle--excluded" style={{ width: 16, height: 16 }}><i className="fa-solid fa-xmark" style={{ fontSize: 8 }} /></span> Excluded</span>
+        <span className="csv3-legend__item"><span className="csv3-toggle csv3-toggle--locked" style={{ width: 16, height: 16 }}><i className="fa-solid fa-lock" style={{ fontSize: 7 }} /></span> Inherited (locked)</span>
+      </div>
+    </div>
+  );
+}
+
 function LiabilityCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
   const { state, updateContract, updateCoverage, addCoverage, removeCoverage } = useLiabState(layers, activeLayerIdx);
   const activeLayer = layers[activeLayerIdx];

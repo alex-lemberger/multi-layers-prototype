@@ -2668,3 +2668,182 @@ body {
   margin-left: auto;
   white-space: nowrap;
 }
+
+/* =========================================================================
+   COVERAGE SPREADING V3 — Layer-first (tab per layer, annotated tree)
+   ========================================================================= */
+.csv3-root { padding: 0; }
+
+/* ---- Layer tabs ---- */
+.csv3-layer-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  padding: 0 0 16px; border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.csv3-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg-elev); color: var(--fg-soft);
+  font-size: 13px; font-family: var(--font-sans); font-weight: 500;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.csv3-tab:hover:not(.csv3-tab--active) {
+  border-color: var(--border-strong); background: var(--bg-sunk);
+}
+.csv3-tab--active {
+  border-color: var(--accent); background: var(--accent-soft);
+  color: var(--fg); font-weight: 600;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.csv3-tab__type {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+  color: #fff;
+}
+.csv3-tab__type--primary { background: var(--accent); }
+.csv3-tab__type--excess { background: #4a90d9; }
+.csv3-tab__name { font-size: 13px; }
+.csv3-tab__range { font-size: 11px; color: var(--fg-muted); font-family: var(--font-mono); }
+
+/* ---- Summary bar ---- */
+.csv3-summary-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px; margin-bottom: 8px;
+  background: var(--bg-sunk); border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+}
+.csv3-summary-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 500;
+}
+.csv3-summary-item--included { color: var(--accent); }
+.csv3-summary-item--excluded { color: var(--red); }
+.csv3-summary-item--locked { color: var(--fg-muted); }
+.csv3-summary-spacer { flex: 1; }
+
+/* ---- Tree ---- */
+.csv3-tree {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-elev); overflow: hidden;
+}
+
+/* ---- Tree row ---- */
+.csv3-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px 10px 16px; min-height: 42px;
+  border-bottom: 1px solid var(--border-soft);
+  cursor: default; transition: background 0.1s;
+}
+.csv3-row:last-child { border-bottom: none; }
+.csv3-row:hover { background: var(--bg-stripe); }
+.csv3-row--expanded { background: var(--accent-soft); }
+.csv3-row--locked { opacity: 0.6; }
+
+.csv3-row__name {
+  flex: 1; font-size: 13px; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+.csv3-row--excluded .csv3-row__name { text-decoration: line-through; color: var(--fg-muted); }
+
+/* Inline field summary tags */
+.csv3-row__summary {
+  display: inline-flex; gap: 6px; flex-shrink: 0;
+}
+.csv3-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 3px;
+  font-size: 11px; font-family: var(--font-mono); font-weight: 500;
+  background: var(--bg-sunk); color: var(--fg-soft);
+  border: 1px solid var(--border-soft);
+}
+
+/* Status label */
+.csv3-row__status {
+  font-size: 11px; font-weight: 500; flex-shrink: 0;
+}
+.csv3-row__status--locked { color: var(--fg-muted); font-style: italic; }
+
+/* ---- Toggle pill (include/exclude/lock) ---- */
+.csv3-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 4px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-elev); cursor: pointer;
+  transition: all 0.15s; flex-shrink: 0;
+  font-size: 10px; color: var(--fg-muted);
+}
+.csv3-toggle:disabled { cursor: not-allowed; }
+.csv3-toggle--included {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.csv3-toggle--excluded {
+  background: var(--red-soft, #fef0f0); border-color: var(--red); color: var(--red);
+}
+.csv3-toggle--locked {
+  background: var(--bg-sunk); border-color: var(--border); color: var(--fg-faint);
+}
+
+/* ---- Edit button ---- */
+.csv3-edit-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-elev);
+  color: var(--fg-muted); cursor: pointer; transition: all 0.15s;
+  flex-shrink: 0;
+}
+.csv3-edit-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.csv3-edit-btn--active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* ---- Accordion (inline edit form) ---- */
+.csv3-accordion {
+  padding: 16px 16px 16px 0;
+  margin-right: 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-stripe);
+  animation: csv3-slide-down 0.15s ease;
+}
+@keyframes csv3-slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.csv3-accordion__grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px 16px; margin-bottom: 16px;
+}
+.csv3-field {}
+.csv3-field__label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--fg-muted); text-transform: uppercase;
+  letter-spacing: 0.03em; margin-bottom: 4px;
+}
+.csv3-field__combo {
+  display: flex; gap: 6px;
+}
+
+/* Inherit toggle */
+.csv3-inherit-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--fg-soft); cursor: pointer;
+  margin-bottom: 12px;
+}
+.csv3-inherit-toggle input[type="checkbox"] {
+  accent-color: var(--accent); width: 14px; height: 14px;
+}
+
+/* Accordion actions */
+.csv3-accordion__actions {
+  display: flex; gap: 8px;
+}
+
+/* ---- Legend ---- */
+.csv3-legend {
+  display: flex; align-items: center; gap: 20px;
+  padding: 12px 0 0; margin-top: 12px;
+}
+.csv3-legend__item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--fg-muted);
+}
