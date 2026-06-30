@@ -2593,11 +2593,14 @@ function CoverageSpreadingV2Screen({ layers, activeLayerIdx, onLayerChange }) {
           {/* Layer column headers */}
           <div className="csv2-tree-col-headers">
             <span className="csv2-col-label">layer status →</span>
-            {layers.map((l, li) => (
-              <span key={li} className="csv2-col-dot-header" title={l.name}>
-                {li === 0 ? "P" : `XS${li}`}
-              </span>
-            ))}
+            <span className="csv2-col-dots-block">
+              {layers.map((l, li) => (
+                <span key={li} className="csv2-col-dot-header" title={l.name}>
+                  {li === 0 ? "P" : `XS${li}`}
+                </span>
+              ))}
+            </span>
+            <span className="csv2-col-count-spacer" />
           </div>
 
           <div className="csv2-tree-scroll">
