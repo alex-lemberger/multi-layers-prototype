@@ -2413,6 +2413,532 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   );
 }
 
+// ============================================================================
+// Coverage Spreading V2 — "List-Detail" variant
+// Same data layer as V1, different UX: vertical layer cards + right-side drawer
+// ============================================================================
+function CoverageSpreadingV2Screen({ layers, activeLayerIdx, onLayerChange }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const [collapsed, setCollapsed] = useS({});
+  const [selectedKindId, setSelectedKindId] = useS(null);
+  const [selectedCov, setSelectedCov] = useS(null);
+  const [filter, setFilter] = useS("");
+  const [drawerTarget, setDrawerTarget] = useS(null); // { layerIdx } | null
+  const [drawerDraft, setDrawerDraft] = useS({});
+  const [inheritToExcess, setInheritToExcess] = useS(false);
+  const CARDS_PER_PAGE = 4;
+  const [cardPage, setCardPage] = useS(0);
+  const { getAssignment, setExcluded, setFields } = useSpreadingState();
+  const parentMapRef = React.useRef({});
+
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => {
+        setCoverageTree(data);
+        data.forEach(root => seedV2(root));
+        parentMapRef.current = buildParentMapV2(data);
+        const first = findFirstSelectedV2(data);
+        if (first) { setSelectedKindId(first.coverageKindId); setSelectedCov(first); }
+      })
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  function seedV2(cov) {
+    layers.forEach((_, li) => {
+      const key = cov.coverageKindId + "_" + li;
+      if (_spreadingAssignments[key] !== undefined) return;
+      _spreadingAssignments[key] = {
+        excluded: false, sublimit: "", sharedSublimit: "", deductible: "",
+        retroDateYears: "", indemnityPeriodValue: "", indemnityPeriodUnit: "MONTH",
+        waitingPeriodValue: "", waitingPeriodUnit: "HOUR",
+      };
+    });
+    (cov.children || []).forEach(child => seedV2(child));
+  }
+
+  function buildParentMapV2(items, parentId = null, map = {}) {
+    items.forEach(cov => {
+      if (parentId) map[cov.coverageKindId] = parentId;
+      if (cov.children?.length) buildParentMapV2(cov.children, cov.coverageKindId, map);
+    });
+    return map;
+  }
+
+  function isCascadeLockedV2(kindId, layerIdx, parentMap) {
+    if (layerIdx === 0) return false;
+    for (let j = 1; j < layerIdx; j++) {
+      if (_spreadingAssignments[kindId + "_" + j]?.excluded === true) return true;
+    }
+    const parentId = parentMap[kindId];
+    if (parentId) {
+      if (_spreadingAssignments[parentId + "_" + layerIdx]?.excluded === true) return true;
+      if (isCascadeLockedV2(parentId, layerIdx, parentMap)) return true;
+    }
+    return false;
+  }
+
+  function findFirstSelectedV2(items) {
+    for (const item of items) {
+      if (item.selected) return item;
+      if (item.children) { const f = findFirstSelectedV2(item.children); if (f) return f; }
+    }
+    return null;
+  }
+
+  const toggleCovSelected = (kindId) => {
+    const toggle = (items) => items.map(c =>
+      c.coverageKindId === kindId ? { ...c, selected: !c.selected }
+      : c.children ? { ...c, children: toggle(c.children) }
+      : c
+    );
+    setCoverageTree(prev => toggle(prev));
+  };
+
+  const flattenTree = (items, depth) => {
+    const rows = [];
+    items.forEach(cov => {
+      const hasChildren = cov.children && cov.children.length > 0;
+      const matchesFilter = !filter || cov.coverageName.toLowerCase().includes(filter.toLowerCase());
+      const descendantMatches = hasChildren && hasDescV2(cov, filter);
+      if (filter && !matchesFilter && !descendantMatches) return;
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId] });
+      if (hasChildren && !collapsed[cov.coverageKindId]) {
+        rows.push(...flattenTree(cov.children, depth + 1));
+      }
+    });
+    return rows;
+  };
+
+  function hasDescV2(cov, f) {
+    if (!f || !cov.children) return false;
+    return cov.children.some(c => c.coverageName.toLowerCase().includes(f.toLowerCase()) || hasDescV2(c, f));
+  }
+
+  // Layer status helper: green=included, red=excluded, gray=locked
+  // (moved up so countIncluded and includedCount can use it)
+  const dotStatus = (kindId, li) => {
+    if (li > 0 && isCascadeLockedV2(kindId, li, parentMapRef.current)) return "locked";
+    const a = getAssignment(kindId, li);
+    if (a?.excluded) return "excluded";
+    return "included";
+  };
+
+  const countIncluded = (kindId) =>
+    layers.filter((_, li) => dotStatus(kindId, li) === "included").length;
+
+  const toggle = (kindId, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [kindId]: !c[kindId] })); };
+  const selectCov = (cov) => { setSelectedKindId(cov.coverageKindId); setSelectedCov(cov); setDrawerTarget(null); };
+
+  // Drawer open: copy assignment into draft
+  const openDrawer = (li) => {
+    const a = getAssignment(selectedCov.coverageKindId, li) || {};
+    setDrawerDraft({
+      sublimit: a.sublimit || "", sharedSublimit: a.sharedSublimit || "",
+      deductible: a.deductible || "", retroDateYears: a.retroDateYears || "",
+      indemnityPeriodValue: a.indemnityPeriodValue || "", indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
+      waitingPeriodValue: a.waitingPeriodValue || "", waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
+    });
+    setDrawerTarget({ layerIdx: li });
+    setInheritToExcess(false);
+  };
+
+  // Save drawer
+  const saveDrawer = () => {
+    if (!drawerTarget || !selectedCov) return;
+    const li = drawerTarget.layerIdx;
+    const fields = { ...drawerDraft };
+    _spreadingAssignments[selectedCov.coverageKindId + "_" + li] = {
+      ...(_spreadingAssignments[selectedCov.coverageKindId + "_" + li] || {}), ...fields
+    };
+    if (inheritToExcess && li === 0) {
+      layers.forEach((_, exLi) => {
+        if (exLi === 0) return;
+        const k = selectedCov.coverageKindId + "_" + exLi;
+        _spreadingAssignments[k] = { ...(_spreadingAssignments[k] || {}), ...fields };
+      });
+    }
+    _saveSpreadingToLS();
+    _spreadingListeners.forEach(fn => fn());
+    setDrawerTarget(null);
+  };
+
+  const treeRows = coverageTree ? flattenTree(coverageTree, 0) : [];
+  const includedCount = selectedCov
+    ? layers.filter((_, li) => dotStatus(selectedCov.coverageKindId, li) === "included").length
+    : 0;
+
+  if (!coverageTree) return <div className="main__title">Coverage Spreading (Cyber)</div>;
+
+  const drawerLayer = drawerTarget != null ? layers[drawerTarget.layerIdx] : null;
+
+  return (
+    <div className="csv2-root">
+      <div className="main__title">Coverage Spreading (Cyber)</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Select a coverage on the left, then assign it to layers and configure limits on the right.
+      </p>
+
+      <div className="csv2-layout">
+        {/* ---- LEFT: Coverage tree ---- */}
+        <div className="csv2-tree-panel">
+          <div className="csv2-tree-header">
+            <span className="csv2-tree-header__title">Coverages</span>
+            <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
+              <i className="fa-solid fa-magnifying-glass" />
+              <input type="text" placeholder="Filter…" value={filter} onChange={e => setFilter(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Layer column headers */}
+          <div className="csv2-tree-col-headers">
+            <span className="csv2-col-label">layer status →</span>
+            {layers.map((l, li) => (
+              <span key={li} className="csv2-col-dot-header" title={l.name}>
+                {li === 0 ? "P" : `XS${li}`}
+              </span>
+            ))}
+          </div>
+
+          <div className="csv2-tree-scroll">
+            {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => {
+              const included = countIncluded(cov.coverageKindId);
+              const isSelected = cov.coverageKindId === selectedKindId;
+              return (
+                <div
+                  key={cov.coverageKindId}
+                  className={`csv2-tree-row${cov.selected ? " csv2-tree-row--checked" : ""}${isSelected ? " csv2-tree-row--selected" : ""}`}
+                  style={{ paddingLeft: 12 + depth * 22 }}
+                  onClick={() => selectCov(cov)}
+                >
+                  {hasChildren ? (
+                    <button className="ct-chevron" style={{ flexShrink: 0 }} onClick={e => toggle(cov.coverageKindId, e)}>
+                      <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                    </button>
+                  ) : (
+                    <span style={{ width: 20, flexShrink: 0 }} />
+                  )}
+                  <span
+                    className={`ct-check${cov.selected ? " ct-check--on" : ""}`}
+                    style={{ flexShrink: 0, cursor: "pointer" }}
+                    onClick={e => { e.stopPropagation(); toggleCovSelected(cov.coverageKindId); }}
+                  >
+                    {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
+                  </span>
+                  <span className="csv2-tree-row__label">{cov.coverageName}</span>
+
+                  {/* Per-layer status dots */}
+                  <span className="csv2-dots">
+                    {layers.map((_, li) => (
+                      <span key={li} className={`csv2-dot csv2-dot--${dotStatus(cov.coverageKindId, li)}`} />
+                    ))}
+                  </span>
+
+                  <span className={`csv2-layer-count ${included === layers.length ? "csv2-layer-count--full" : "csv2-layer-count--partial"}`}>
+                    {included}/{layers.length}
+                  </span>
+
+                  {isSelected && <i className="fa-solid fa-chevron-right csv2-tree-row__arrow" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ---- RIGHT: Layer cards ---- */}
+        <div className="csv2-detail-panel">
+          {!selectedCov ? (
+            <div className="csv2-empty">
+              <i className="fa-solid fa-layer-group" style={{ fontSize: 32, color: "var(--fg-faint)" }} />
+              <span>Select a coverage on the left to assign it to layers</span>
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div className="csv2-detail-header">
+                <span className="csv2-detail-header__cov">{selectedCov.coverageName}</span>
+                <span className="csv2-detail-header__stats">
+                  {includedCount} of {layers.length} {includedCount === 1 ? "layer" : "layers"} included
+                </span>
+              </div>
+
+              {/* Layer pill tabs (within detail panel) */}
+              <div className="csv2-layer-pills">
+                {layers.map((l, li) => {
+                  const status = dotStatus(selectedCov.coverageKindId, li);
+                  return (
+                    <span
+                      key={li}
+                      className={`csv2-pill csv2-pill--${status}${li === activeLayerIdx ? " csv2-pill--active" : ""}`}
+                      onClick={() => {
+                        onLayerChange(li);
+                        // Auto-jump to the page containing this layer
+                        const reversedIdx = layers.length - 1 - li;
+                        setCardPage(Math.floor(reversedIdx / CARDS_PER_PAGE));
+                      }}
+                    >
+                      <span className={`csv2-pill__dot csv2-pill__dot--${status}`} />
+                      {l.name} <span className="csv2-pill__range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Card stack — paginated, reversed so Primary is at bottom visually */}
+              {(() => {
+                const reversedLayers = [...layers].reverse();
+                const totalPages = Math.ceil(reversedLayers.length / CARDS_PER_PAGE);
+                const safePage = Math.min(cardPage, totalPages - 1);
+                const pageStart = safePage * CARDS_PER_PAGE;
+                const pageLayers = reversedLayers.slice(pageStart, pageStart + CARDS_PER_PAGE);
+
+                return (
+                  <>
+                    <div className="csv2-card-stack">
+                      {pageLayers.map((layer, pIdx) => {
+                        const revIdx = pageStart + pIdx;
+                        const li = layers.length - 1 - revIdx;
+                        const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
+                        const isPrimary = li === 0;
+                        const isExcluded = !isPrimary && assignment.excluded === true;
+                        const isLocked = !isPrimary && isCascadeLockedV2(selectedCov.coverageKindId, li, parentMapRef.current);
+                        const isDrawerOpen = drawerTarget?.layerIdx === li;
+
+                        let cardClass = "csv2-card";
+                        if (isLocked) cardClass += " csv2-card--locked";
+                        else if (isExcluded) cardClass += " csv2-card--excluded";
+                        else cardClass += " csv2-card--included";
+                        if (isDrawerOpen) cardClass += " csv2-card--editing";
+
+                        return (
+                          <div key={layer.id} className={cardClass}>
+                            {/* Card header */}
+                            <div className="csv2-card__header">
+                              <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}>
+                                {layer.type || "Excess"}
+                              </span>
+                              <span className="csv2-card__name">{layer.name}</span>
+                              <span className="csv2-card__range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
+                              <span className={`csv2-card__status csv2-card__status--${isLocked ? "locked" : isExcluded ? "excluded" : "included"}`}>
+                                {isLocked ? "Locked" : isExcluded ? "Excluded" : "Included"}
+                              </span>
+                              {!isLocked && (
+                                <button
+                                  className="csv2-card__edit-btn"
+                                  title={isExcluded ? "Restore / configure" : "Edit coverage limits"}
+                                  onClick={() => isDrawerOpen ? setDrawerTarget(null) : openDrawer(li)}
+                                >
+                                  <i className={`fa-solid fa-${isExcluded ? "rotate-left" : "pencil"}`} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Card body — value grid for included, message for excluded/locked */}
+                            {!isExcluded && !isLocked && (
+                              <div className="csv2-card__body">
+                                <div className="csv2-val-grid">
+                                  <span className="csv2-val-label">SUBLIMIT</span>
+                                  <span className="csv2-val-value">{assignment.sublimit ? fmtEUR(Number(assignment.sublimit)) : "—"}</span>
+                                  <span className="csv2-val-label">SHARED SUBLIMIT</span>
+                                  <span className="csv2-val-value">{assignment.sharedSublimit ? fmtEUR(Number(assignment.sharedSublimit)) : "—"}</span>
+                                  <span className="csv2-val-label">DEDUCTIBLE</span>
+                                  <span className="csv2-val-value">{assignment.deductible ? fmtEUR(Number(assignment.deductible)) : "—"}</span>
+                                  <span className="csv2-val-label">RETRO COVER</span>
+                                  <span className="csv2-val-value">{assignment.retroDateYears ? `${assignment.retroDateYears} years` : "—"}</span>
+                                  <span className="csv2-val-label">INDEMNITY</span>
+                                  <span className="csv2-val-value">{assignment.indemnityPeriodValue ? `${assignment.indemnityPeriodValue} ${assignment.indemnityPeriodUnit === "HOUR" ? "hours" : "months"}` : "—"}</span>
+                                  <span className="csv2-val-label">WAITING</span>
+                                  <span className="csv2-val-value">{assignment.waitingPeriodValue ? `${assignment.waitingPeriodValue} ${assignment.waitingPeriodUnit === "HOUR" ? "hours" : "months"}` : "—"}</span>
+                                </div>
+                              </div>
+                            )}
+                            {isExcluded && !isLocked && (
+                              <div className="csv2-card__body csv2-card__body--muted">
+                                Excluded by cascade
+                              </div>
+                            )}
+                            {isLocked && (
+                              <div className="csv2-card__body csv2-card__body--muted">
+                                Excluded by cascade
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="csv2-pagination">
+                        <button
+                          className="csv2-page-arrow"
+                          disabled={safePage === 0}
+                          onClick={() => setCardPage(p => Math.max(0, p - 1))}
+                        >
+                          <i className="fa-solid fa-chevron-left" />
+                        </button>
+
+                        {Array.from({ length: totalPages }, (_, pi) => {
+                          // Show max 2 page buttons around current page
+                          if (pi < safePage - 1 || pi > safePage + 1) return null;
+                          // Short label: just page number
+                          return (
+                            <button
+                              key={pi}
+                              className={`csv2-page-btn${pi === safePage ? " csv2-page-btn--active" : ""}`}
+                              onClick={() => setCardPage(pi)}
+                            >
+                              {pi + 1}
+                            </button>
+                          );
+                        })}
+
+                        <button
+                          className="csv2-page-arrow"
+                          disabled={safePage >= totalPages - 1}
+                          onClick={() => setCardPage(p => Math.min(totalPages - 1, p + 1))}
+                        >
+                          <i className="fa-solid fa-chevron-right" />
+                        </button>
+
+                        <span className="csv2-page-info">
+                          {safePage + 1} / {totalPages}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Legend */}
+              <div className="lc-legend" style={{ marginTop: 16 }}>
+                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included</span>
+                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Excluded</span>
+                <span className="lc-legend__item">
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#e0e0e0", marginRight: 5 }} />
+                  Locked by cascade
+                </span>
+                <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
+                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Use pencil icon to configure a layer block
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Right-side drawer (slides from right edge) ---- */}
+      {drawerTarget !== null && drawerLayer && selectedCov && (
+        <div className="csv2-drawer-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setDrawerTarget(null); }}>
+          <div className="csv2-drawer">
+            <div className="csv2-drawer__header">
+              <div className="csv2-drawer__titles">
+                <span className="csv2-drawer__layer">
+                  {drawerLayer.type || "Excess"} Layer {drawerTarget.layerIdx > 0 ? drawerTarget.layerIdx : ""} · {fmtShortRange(drawerLayer.rangeFrom, drawerLayer.rangeTo)}
+                </span>
+                <span className="csv2-drawer__cov">{selectedCov.coverageName}</span>
+              </div>
+              <button className="drawer__close" onClick={() => setDrawerTarget(null)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="csv2-drawer__body">
+              {/* Inherit toggle — primary layer only */}
+              {drawerTarget?.layerIdx === 0 && (
+                <div className="csv2-inherit-toggle" onClick={() => setInheritToExcess(v => !v)}>
+                  <span>Apply values to all excess layers on save</span>
+                  <div className={`ls-toggle${inheritToExcess ? " ls-toggle--on" : ""}`}>
+                    <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                  </div>
+                </div>
+              )}
+              {/* Fields */}
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Sublimit (agg)</span>
+                <div className="csv2-drawer__field-input">
+                  <span className="csv2-drawer__currency">€</span>
+                  <input placeholder="e.g. 1,000,000" value={drawerDraft.sublimit || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, sublimit: e.target.value }))} />
+                </div>
+              </div>
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Shared Sublimit (agg)</span>
+                <div className="csv2-drawer__field-input">
+                  <span className="csv2-drawer__currency">€</span>
+                  <input placeholder="e.g. 500,000" value={drawerDraft.sharedSublimit || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
+                </div>
+              </div>
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Deductible (absolute)</span>
+                <div className="csv2-drawer__field-input">
+                  <span className="csv2-drawer__currency">€</span>
+                  <input placeholder="e.g. 50,000" value={drawerDraft.deductible || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, deductible: e.target.value }))} />
+                </div>
+              </div>
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Retroactive Cover</span>
+                <div className="csv2-drawer__field-input csv2-drawer__field-input--with-unit">
+                  <input placeholder="e.g. 3" value={drawerDraft.retroDateYears || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
+                  <span className="csv2-drawer__unit">years</span>
+                </div>
+              </div>
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Indemnity Period</span>
+                <div className="csv2-drawer__field-input csv2-drawer__field-input--with-unit">
+                  <input placeholder="e.g. 12" value={drawerDraft.indemnityPeriodValue || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
+                  <select value={drawerDraft.indemnityPeriodUnit || "MONTH"}
+                    onChange={e => setDrawerDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
+              </div>
+              <div className="csv2-drawer__field">
+                <span className="csv2-drawer__field-label">Waiting Period</span>
+                <div className="csv2-drawer__field-input csv2-drawer__field-input--with-unit">
+                  <input placeholder="e.g. 8" value={drawerDraft.waitingPeriodValue || ""}
+                    onChange={e => setDrawerDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
+                  <select value={drawerDraft.waitingPeriodUnit || "HOUR"}
+                    onChange={e => setDrawerDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="csv2-drawer__footer">
+              <button className="btn btn--primary" onClick={saveDrawer}>Save</button>
+              {drawerTarget && layers[drawerTarget.layerIdx]?.type !== "Primary" && (() => {
+                const li = drawerTarget.layerIdx;
+                const a = getAssignment(selectedCov?.coverageKindId, li) || {};
+                return a.excluded
+                  ? (
+                    <button className="btn btn--outline" style={{ color: "var(--hdi-universal-green, #65a518)", borderColor: "var(--hdi-universal-green, #65a518)" }}
+                      onClick={() => { setExcluded(selectedCov.coverageKindId, li, false); setDrawerTarget(null); }}>
+                      Restore to layer
+                    </button>
+                  ) : (
+                    <button className="btn btn--outline" style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }}
+                      onClick={() => { setExcluded(selectedCov.coverageKindId, li, true); setDrawerTarget(null); }}>
+                      Exclude from layer
+                    </button>
+                  );
+              })()}
+              <button className="btn btn--outline" onClick={() => setDrawerTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiabilityCoverageScreen({ layers, activeLayerIdx, onLayerChange }) {
   const { state, updateContract, updateCoverage, addCoverage, removeCoverage } = useLiabState(layers, activeLayerIdx);
   const activeLayer = layers[activeLayerIdx];

@@ -150,6 +150,7 @@ const NAV_ITEMS_A = [
   { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers-settings",      label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
+    { id: "coverage-spreading-v2", label: "Coverage V2",         icon: "fa-solid fa-list" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
@@ -169,6 +170,7 @@ const NAV_ITEMS_B = [
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
+    { id: "coverage-spreading-v2", label: "Coverage V2",         icon: "fa-solid fa-list" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
     // Property + Liability hidden until design team delivers screenshots:
     // { id: "prop-define",       label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
@@ -536,6 +538,7 @@ function App() {
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "coverage-spreading-v2": return <CoverageSpreadingV2Screen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage-poc": return <LayeredCoveragePocScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-define":        return <PropDefineCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
