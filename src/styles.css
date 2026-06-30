@@ -1421,7 +1421,7 @@ body {
 }
 .cst-filter-toggle {
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: 12px; color: var(--fg-soft); cursor: pointer;
+  font-size: 14px; color: var(--fg-soft); cursor: pointer;
   user-select: none;
 }
 .cst-filter-toggle input[type="checkbox"] {
