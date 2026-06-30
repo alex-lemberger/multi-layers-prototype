@@ -1929,6 +1929,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [selectedKindId, setSelectedKindId] = useS(null);
   const [selectedCov, setSelectedCov] = useS(null);
   const [filter, setFilter] = useS("");
+  const [showOnlyActive, setShowOnlyActive] = useS(false);
+  const [hideNonParticipating, setHideNonParticipating] = useS(false);
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
@@ -2016,6 +2018,14 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       const matchesFilter = !filter || cov.coverageName.toLowerCase().includes(filter.toLowerCase());
       const descendantMatches = hasChildren && hasDescendantMatch(cov, filter);
       if (filter && !matchesFilter && !descendantMatches) return;
+      // "Show only active" filter: skip unselected coverages (and check descendants)
+      if (showOnlyActive && !cov.selected) {
+        // Still recurse into children — some descendants may be selected
+        if (hasChildren && !collapsed[cov.coverageKindId]) {
+          rows.push(...flattenTree(cov.children, depth));
+        }
+        return;
+      }
       rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId] });
       if (hasChildren && !collapsed[cov.coverageKindId]) {
         rows.push(...flattenTree(cov.children, depth + 1));
@@ -2115,6 +2125,12 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               />
             </div>
           </div>
+          <div className="cst-filter-bar">
+            <label className="cst-filter-toggle">
+              <input type="checkbox" checked={showOnlyActive} onChange={e => setShowOnlyActive(e.target.checked)} />
+              <span>Show only active coverages</span>
+            </label>
+          </div>
           <div className="cst-tree-scroll">
             {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => {
               const included = countIncluded(cov.coverageKindId);
@@ -2172,9 +2188,17 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                 </div>
               </div>
 
+              <div className="cst-filter-bar">
+                <label className="cst-filter-toggle">
+                  <input type="checkbox" checked={hideNonParticipating} onChange={e => setHideNonParticipating(e.target.checked)} />
+                  <span>Hide non-participating layers</span>
+                </label>
+              </div>
+
               {/* Tower */}
               <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
-                {layers.map((layer, li) => {
+                {layers.filter(l => !hideNonParticipating || l.participating).map((layer, _fi) => {
+                  const li = layers.indexOf(layer);
                   const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
                   const isPrimary = li === 0;
                   const isExcluded = !isPrimary && assignment.excluded === true;
@@ -2218,8 +2242,8 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                           {isLocked ? "Locked" : isExcluded ? "Excluded" : "Included"}
                         </span>
 
-                        {/* Panel open/close — pencil icon only */}
-                        {!isLocked && (
+                        {/* Panel open/close — pencil icon only (disabled on Primary = read-only) */}
+                        {!isLocked && !isPrimary && (
                           <button
                             className="cst-block-edit-btn"
                             title={isExcluded ? "Restore / configure" : "Edit coverage assignment"}
