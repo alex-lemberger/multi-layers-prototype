@@ -1931,6 +1931,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [filter, setFilter] = useS("");
   const [showOnlyActive, setShowOnlyActive] = useS(false);
   const [hideNonParticipating, setHideNonParticipating] = useS(false);
+  const [hideNonAssigned, setHideNonAssigned] = useS(false);
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
@@ -2193,11 +2194,24 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   <input type="checkbox" checked={hideNonParticipating} onChange={e => setHideNonParticipating(e.target.checked)} />
                   <span>Hide non-participating layers</span>
                 </label>
+                <label className="cst-filter-toggle">
+                  <input type="checkbox" checked={hideNonAssigned} onChange={e => setHideNonAssigned(e.target.checked)} />
+                  <span>Hide non-assigned layers</span>
+                </label>
               </div>
 
               {/* Tower */}
               <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
-                {layers.filter(l => !hideNonParticipating || l.participating).map((layer, _fi) => {
+                {layers.filter(l => {
+                  if (hideNonParticipating && !l.participating) return false;
+                  if (hideNonAssigned && selectedCov) {
+                    const li = layers.indexOf(l);
+                    const a = getAssignment(selectedCov.coverageKindId, li);
+                    if (a?.excluded) return false;
+                    if (li > 0 && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current)) return false;
+                  }
+                  return true;
+                }).map((layer, _fi) => {
                   const li = layers.indexOf(layer);
                   const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
                   const isPrimary = li === 0;
