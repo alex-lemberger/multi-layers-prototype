@@ -665,8 +665,12 @@ function App() {
             <h1 className="partner-banner__title">Suppella Partner International GmbH</h1>
             <div className="partner-banner__chips">
               <OptionDropdown />
-              <span className="pb-divider" />
-              <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
+              {!["coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision"].includes(activeNav) && (
+                <>
+                  <span className="pb-divider" />
+                  <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
+                </>
+              )}
               <span className="pb-divider" />
               <span className="pbchip"><i className="fa-solid fa-tag" style={{fontSize: 11}} /> Partner ID: 889088122712</span>
             </div>
