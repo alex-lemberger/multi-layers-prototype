@@ -1938,6 +1938,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [inheritToExcess, setInheritToExcess] = useS(false);
   const { getAssignment, setExcluded, setFields } = useSpreadingState();
   const parentMapRef = React.useRef({});
+  const covNameByIdRef = React.useRef({});
 
   useE(() => {
     fetch("coverage.json")
@@ -1946,6 +1947,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
         setCoverageTree(data);
         data.forEach(root => seedAssignments(root));
         parentMapRef.current = buildParentMap(data);
+        covNameByIdRef.current = buildNameMap(data);
         const first = findFirstSelected(data);
         if (first) { setSelectedKindId(first.coverageKindId); setSelectedCov(first); }
       })
@@ -1977,6 +1979,26 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       if (cov.children?.length) buildParentMap(cov.children, cov.coverageKindId, map);
     });
     return map;
+  }
+
+  function buildNameMap(items, map = {}) {
+    items.forEach(cov => {
+      map[cov.coverageKindId] = (cov.coverageName || "").trim();
+      if (cov.children?.length) buildNameMap(cov.children, map);
+    });
+    return map;
+  }
+
+  // Full ancestor chain (root first) for the tower header breadcrumb —
+  // e.g. ["Own losses", "Incident Response Costs", "Forensic Investigations"]
+  function breadcrumbFor(kindId, parentMap, nameMap) {
+    const chain = [nameMap[kindId]];
+    let current = kindId;
+    while (parentMap[current]) {
+      current = parentMap[current];
+      chain.unshift(nameMap[current]);
+    }
+    return chain.filter(Boolean);
   }
 
   function isCascadeLocked(kindId, layerIdx, parentMap) {
@@ -2182,6 +2204,20 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               {/* Header: coverage title + stats */}
               <div className="cst-tower-header">
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  {(() => {
+                    const chain = breadcrumbFor(selectedCov.coverageKindId, parentMapRef.current, covNameByIdRef.current);
+                    const ancestors = chain.slice(0, -1); // exclude the leaf — it's shown big below
+                    return ancestors.length > 0 && (
+                      <span className="cst-tower-header__breadcrumb">
+                        {ancestors.map((name, i) => (
+                          <F key={i}>
+                            {i > 0 && <i className="fa-solid fa-chevron-right cst-tower-header__breadcrumb-sep" />}
+                            <span>{name}</span>
+                          </F>
+                        ))}
+                      </span>
+                    );
+                  })()}
                   <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
                   <span className="cst-tower-header__stats">
                     {includedCount} of {layers.length} {includedCount === 1 ? "layer" : "layers"} included

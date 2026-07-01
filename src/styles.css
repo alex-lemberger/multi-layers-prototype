@@ -1531,6 +1531,21 @@ body {
   flex-wrap: wrap;
 }
 
+.cst-tower-header__breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+
+.cst-tower-header__breadcrumb-sep {
+  font-size: 8px;
+  color: var(--fg-faint);
+}
+
 .cst-tower-header__cov {
   font-size: 16px;
   font-weight: 700;
