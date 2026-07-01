@@ -2189,6 +2189,18 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                 </div>
               </div>
 
+              {/* Legend — moved to top (local test); pills reuse the real status-badge classes
+                  (.cst-block-status-badge--*) since those are the actually-colorful part of a
+                  block — the card backgrounds themselves are intentionally near-white. */}
+              <div className="lc-legend cst-tower-legend">
+                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--included cst-legend-swatch">Included</span></span>
+                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--excluded cst-legend-swatch">Excluded</span></span>
+                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--locked cst-legend-swatch">Locked by cascade</span></span>
+                <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
+                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Use pencil icon to configure a layer block
+                </span>
+              </div>
+
               <div className="cst-filter-bar">
                 <label className="cst-filter-toggle">
                   <input type="checkbox" checked={hideNonParticipating} onChange={e => setHideNonParticipating(e.target.checked)} />
@@ -2299,18 +2311,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                     </div>
                   );
                 })}
-              </div>
-
-              <div className="lc-legend" style={{ marginTop: 16 }}>
-                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--included" /> Included</span>
-                <span className="lc-legend__item"><span className="lc-legend__dot lc-legend__dot--excluded" /> Excluded</span>
-                <span className="lc-legend__item">
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#e0e0e0", marginRight: 5 }} />
-                  Locked by cascade
-                </span>
-                <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
-                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Use pencil icon to configure a layer block
-                </span>
               </div>
             </>
           )}
@@ -3429,6 +3429,9 @@ let _fdFinalized = (() => {
 let _fdBindDate = (() => {
   try { return localStorage.getItem("ml_fd_binddate_v1") || ""; } catch { return ""; }
 })();
+let _fdPolicyGroupId = (() => {
+  try { return localStorage.getItem("ml_fd_policygroup_v1") || ""; } catch { return ""; }
+})();
 let _fdListeners = [];
 
 function _saveFdToLS() {
@@ -3436,6 +3439,7 @@ function _saveFdToLS() {
     localStorage.setItem("ml_fd_v1", JSON.stringify(_fdDecisions));
     localStorage.setItem("ml_fd_finalized_v1", JSON.stringify(_fdFinalized));
     localStorage.setItem("ml_fd_binddate_v1", _fdBindDate);
+    localStorage.setItem("ml_fd_policygroup_v1", _fdPolicyGroupId);
   } catch {}
 }
 
@@ -3447,6 +3451,7 @@ function seedFdDecisions(layers) {
       typeOfParticipation: "100% direct business",
       hdiSharePct: "100",
       leadInsurer: true,
+      reasonForDecision: "",
       achievedPremium: "",
       policyId: null,
     };
@@ -3476,6 +3481,7 @@ function useFdState() {
         _fdDecisions[li] = { ..._fdDecisions[li], policyId: id };
       }
     });
+    _fdPolicyGroupId = "PG-" + String(Math.floor(100000 + Math.random() * 900000));
     _fdFinalized = true;
     _saveFdToLS(); notify();
   };
@@ -3489,6 +3495,7 @@ function useFdState() {
     layers.forEach((_, li) => { delete _fdDecisions[li]; });
     _fdFinalized = false;
     _fdBindDate = "";
+    _fdPolicyGroupId = "";
     _saveFdToLS(); notify();
   };
 
@@ -3504,15 +3511,19 @@ function FinalDecisionScreen({ layers }) {
 
   useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
 
-  // Group layers by product
+  // Group layers by product — only participating layers are listed on this
+  // screen; a non-participating layer was never actually offered, so there's
+  // no decision to make on it.
   const groups = layers.reduce((acc, layer, li) => {
+    if (!layer.participating) return acc;
     const prod = layer.product || "Unknown";
     if (!acc[prod]) acc[prod] = [];
     acc[prod].push({ layer, li });
     return acc;
   }, {});
 
-  const allHaveDecision = layers.every((_, li) => {
+  const allHaveDecision = layers.every((layer, li) => {
+    if (!layer.participating) return true;
     const d = getDecision(li);
     return d && d.decision !== "offered";
   });
@@ -3660,11 +3671,13 @@ function FinalDecisionScreen({ layers }) {
                             {d.hdiSharePct ? `${d.hdiSharePct}%` : <span style={{ color: "var(--fg-faint)" }}>—</span>}
                           </td>
 
-                          {/* Lead Insurer */}
+                          {/* Lead Insurer — only meaningful for co-insurance */}
                           <td style={{ fontSize: 12 }}>
-                            {d.leadInsurer
-                              ? <span style={{ color: "var(--accent)" }}>✓ Yes</span>
-                              : <span style={{ color: "var(--fg-faint)" }}>No</span>}
+                            {d.typeOfParticipation === "Co-insurance"
+                              ? (d.leadInsurer
+                                  ? <span style={{ color: "var(--accent)" }}>✓ Yes</span>
+                                  : <span style={{ color: "var(--fg-faint)" }}>No</span>)
+                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
                           </td>
 
                           {/* Achieved Premium */}
@@ -3737,7 +3750,7 @@ function FinalDecisionScreen({ layers }) {
           <div className="fd-result-banner">
             <div className="fd-result-banner__title">
               <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
-              Offer Finalised
+              Offer Finalised — policy numbers shown in the table above
               <button
                 className="btn btn--outline"
                 style={{ marginLeft: "auto", fontSize: 11, color: "var(--fg-muted)" }}
@@ -3746,18 +3759,6 @@ function FinalDecisionScreen({ layers }) {
                 <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
                 Reset (demo)
               </button>
-            </div>
-            <div className="fd-policy-cards">
-              {layers.map((layer, li) => {
-                const d = getDecision(li);
-                if (!d || d.decision !== "accepted" || !d.policyId) return null;
-                return (
-                  <div key={li} className="fd-policy-card">
-                    <div className="fd-policy-card__layer">{layer.name}</div>
-                    <div className="fd-policy-card__id">Policy-ID: {d.policyId}</div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}
@@ -3794,6 +3795,18 @@ function FinalDecisionScreen({ layers }) {
                 </select>
               </div>
 
+              {/* Reason for Decision */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Reason for Decision</span>
+                <textarea
+                  className="cst-panel-textarea"
+                  placeholder="e.g. Risk accepted within appetite guidelines"
+                  rows={3}
+                  value={draft.reasonForDecision || ""}
+                  onChange={e => setDraft(d => ({ ...d, reasonForDecision: e.target.value }))}
+                />
+              </div>
+
               {/* Offered Premium — read-only context */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Offered Premium</span>
@@ -3805,12 +3818,17 @@ function FinalDecisionScreen({ layers }) {
               {/* Type of Participation */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Type of Participation</span>
-                <input
+                <select
                   className="cst-panel-input"
-                  placeholder="e.g. 100% direct business"
-                  value={draft.typeOfParticipation || ""}
-                  onChange={e => setDraft(d => ({ ...d, typeOfParticipation: e.target.value }))}
-                />
+                  value={draft.typeOfParticipation || "100% direct business"}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setDraft(d => ({ ...d, typeOfParticipation: val, leadInsurer: val === "Co-insurance" ? d.leadInsurer : false }));
+                  }}
+                >
+                  <option value="100% direct business">100% direct business</option>
+                  <option value="Co-insurance">Co-insurance</option>
+                </select>
               </div>
 
               {/* Final HDI Share % */}
@@ -3830,16 +3848,18 @@ function FinalDecisionScreen({ layers }) {
                 </div>
               </div>
 
-              {/* Lead Insurer toggle */}
-              <div className="cst-panel__field">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-                  onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
-                  <span className="cst-panel__field-label">Lead Insurer</span>
-                  <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`}>
-                    <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+              {/* Lead Insurer toggle — only relevant when co-insured */}
+              {draft.typeOfParticipation === "Co-insurance" && (
+                <div className="cst-panel__field">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+                    onClick={() => setDraft(d => ({ ...d, leadInsurer: !d.leadInsurer }))}>
+                    <span className="cst-panel__field-label">Lead Insurer</span>
+                    <div className={`ls-toggle${draft.leadInsurer ? " ls-toggle--on" : ""}`}>
+                      <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Achieved Premium — only if Accepted */}
               {draftIsAccepted && (

@@ -930,6 +930,28 @@ body {
   width: 10px; height: 10px;
 }
 
+/* Tower legend (Coverage Spreading V1 only) — bigger swatches that reuse the
+   real .cst-layer-block--* classes below, so colors can never drift from
+   the actual blocks. Scoped to this screen; other lc-legend usages (Layered
+   Coverage, Coverage Spreading V2) are untouched. */
+.cst-tower-legend {
+  gap: 24px;
+  padding: 14px 16px;
+  margin: 0 0 16px 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-stripe);
+}
+.cst-tower-legend__item { font-size: 14px; gap: 8px; }
+/* Enlarges + re-centers the real .cst-block-status-badge pill for legend use
+   (that badge — not the near-white card background — is the actually-colorful,
+   legible part of a block, so the legend mirrors that instead). */
+.cst-legend-swatch {
+  font-size: 13px;
+  padding: 4px 12px;
+  margin-left: 0;
+}
+
 /* ==========================================================================
    Layered Coverage Tree × Layers Matrix
    ========================================================================== */
@@ -1378,6 +1400,16 @@ body {
 .cst-panel-input:focus { border-color: var(--accent); }
 .cst-panel-input:disabled { background: var(--bg-sunk); color: var(--fg-faint); cursor: not-allowed; }
 .cst-panel-input::placeholder { color: var(--fg-faint); font-family: var(--font-sans); }
+
+.cst-panel-textarea {
+  width: 100%; padding: 9px 12px; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; font-family: var(--font-sans); color: var(--fg);
+  background: var(--bg-elev); outline: none; transition: border-color 0.15s;
+  resize: vertical; min-height: 60px;
+}
+.cst-panel-textarea:focus { border-color: var(--accent); }
+.cst-panel-textarea::placeholder { color: var(--fg-faint); }
 
 /* Read-only value shown in panel (context fields, e.g. Offered Premium, Policy) */
 .cst-panel__field-static {
@@ -2032,28 +2064,6 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-}
-.fd-policy-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-.fd-policy-card {
-  background: var(--bg-elev);
-  border: 1px solid #a5d6a7;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 12px;
-}
-.fd-policy-card__layer {
-  font-weight: 600;
-  color: var(--fg);
-  margin-bottom: 2px;
-}
-.fd-policy-card__id {
-  font-family: var(--font-mono);
-  color: var(--accent);
 }
 .lct-pagination__page--active:hover { background: var(--accent); color: #fff; }
 

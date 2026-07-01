@@ -673,6 +673,8 @@ function App() {
               )}
               <span className="pb-divider" />
               <span className="pbchip"><i className="fa-solid fa-tag" style={{fontSize: 11}} /> Partner ID: 889088122712</span>
+              <span className="pb-divider" />
+              <span className="pbchip"><i className="fa-solid fa-layer-group" style={{fontSize: 11}} /> Policy Group ID: {_fdPolicyGroupId || "—"}</span>
             </div>
             <div className="partner-banner__meta" style={{width: "100%"}}>
               <span className="meta-item">
