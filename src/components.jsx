@@ -15,6 +15,50 @@ function fmtShortRange(lo, hi) {
   return "€ " + fmt(lo) + " – € " + fmt(hi);
 }
 
+// ---- Euro Input (format-on-blur, European grouping — same convention as CaTa Marine's NumberInput) ----
+function parseEuroAmount(str) {
+  if (!str) return "";
+  let cleaned = String(str).replace(/[^\d.,]/g, ""); // keep digits, dots, commas only
+  if (cleaned === "") return "";
+  cleaned = cleaned.split(".").join("");   // "." = thousands separator -> drop
+  cleaned = cleaned.replace(",", ".");     // "," = decimal separator -> convert to JS decimal point
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return "";
+  return String(Math.round(num * 100) / 100); // clean number string, up to 2 decimals, period-decimal (Number()-safe)
+}
+function formatEuroAmount(value) {
+  if (value === "" || value == null) return "";
+  const num = Number(value);
+  if (isNaN(num)) return "";
+  return num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // e.g. 1.234,56
+}
+function EuroInput({ value, onChange, placeholder, disabled }) {
+  const [display, setDisplay] = useState(formatEuroAmount(value));
+  useEffect(() => { setDisplay(formatEuroAmount(value)); }, [value]);
+
+  const handleBlur = () => {
+    const parsed = parseEuroAmount(display);
+    onChange?.(parsed);
+    setDisplay(formatEuroAmount(parsed));
+  };
+
+  return (
+    <div className="cst-euro-input">
+      <input
+        className="cst-panel-input cst-euro-input__el"
+        type="text"
+        inputMode="decimal"
+        value={display}
+        onChange={e => setDisplay(e.target.value)}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      <span className="cst-euro-input__suffix">€</span>
+    </div>
+  );
+}
+
 // ---- DisplayCard components (from CaTa Marine) ----
 function DisplayCardGrid({ children, cols = 2 }) {
   return <div className="dcard-grid" style={{ "--dcols": cols }}>{children}</div>;

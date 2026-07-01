@@ -1379,6 +1379,22 @@ body {
 .cst-panel-input:disabled { background: var(--bg-sunk); color: var(--fg-faint); cursor: not-allowed; }
 .cst-panel-input::placeholder { color: var(--fg-faint); font-family: var(--font-sans); }
 
+/* Read-only value shown in panel (context fields, e.g. Offered Premium, Policy) */
+.cst-panel__field-static {
+  width: 100%; padding: 9px 12px; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  font-size: 13px; font-family: var(--font-mono); color: var(--fg-muted);
+  background: var(--bg-sunk);
+}
+
+/* Euro input — € suffix sits inside the field, right-aligned */
+.cst-euro-input { position: relative; width: 100%; }
+.cst-euro-input__el { padding-right: 28px; width: 100%; box-sizing: border-box; }
+.cst-euro-input__suffix {
+  position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+  font-size: 13px; color: var(--fg-muted); pointer-events: none;
+}
+
 .cst-layout {
   display: flex;
   gap: 24px;

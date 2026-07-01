@@ -2347,32 +2347,23 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               {/* 1. Sublimit (agg) */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Sublimit (agg)</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
-                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 1,000,000"
-                    value={panelDraft.sublimit || ""}
-                    onChange={e => setPanelDraft(d => ({ ...d, sublimit: e.target.value }))} />
-                </div>
+                <EuroInput placeholder="e.g. 1.000.000"
+                  value={panelDraft.sublimit || ""}
+                  onChange={v => setPanelDraft(d => ({ ...d, sublimit: v }))} />
               </div>
               {/* 2. Shared Sublimit (agg) */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Shared Sublimit (agg)</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
-                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 500,000"
-                    value={panelDraft.sharedSublimit || ""}
-                    onChange={e => setPanelDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
-                </div>
+                <EuroInput placeholder="e.g. 500.000"
+                  value={panelDraft.sharedSublimit || ""}
+                  onChange={v => setPanelDraft(d => ({ ...d, sharedSublimit: v }))} />
               </div>
               {/* 3. Deductible (absolute) */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Deductible (absolute)</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
-                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 50,000"
-                    value={panelDraft.deductible || ""}
-                    onChange={e => setPanelDraft(d => ({ ...d, deductible: e.target.value }))} />
-                </div>
+                <EuroInput placeholder="e.g. 50.000"
+                  value={panelDraft.deductible || ""}
+                  onChange={v => setPanelDraft(d => ({ ...d, deductible: v }))} />
               </div>
               {/* 4. Retroactive Cover */}
               <div className="cst-panel__field">
@@ -3803,6 +3794,14 @@ function FinalDecisionScreen({ layers }) {
                 </select>
               </div>
 
+              {/* Offered Premium — read-only context */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Offered Premium</span>
+                <div className="cst-panel__field-static">
+                  {panelLayer.premium ? fmtEUR(panelLayer.premium) : "—"}
+                </div>
+              </div>
+
               {/* Type of Participation */}
               <div className="cst-panel__field">
                 <span className="cst-panel__field-label">Type of Participation</span>
@@ -3846,17 +3845,9 @@ function FinalDecisionScreen({ layers }) {
               {draftIsAccepted && (
                 <div className="cst-panel__field">
                   <span className="cst-panel__field-label">Achieved Premium</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 13, color: "var(--fg-muted)" }}>€</span>
-                    <input
-                      className="cst-panel-input"
-                      style={{ flex: 1 }}
-                      type="number"
-                      placeholder="e.g. 55,000"
-                      value={draft.achievedPremium || ""}
-                      onChange={e => setDraft(d => ({ ...d, achievedPremium: e.target.value }))}
-                    />
-                  </div>
+                  <EuroInput placeholder="e.g. 55.000"
+                    value={draft.achievedPremium || ""}
+                    onChange={v => setDraft(d => ({ ...d, achievedPremium: v }))} />
                   {draft.achievedPremium && draft.hdiSharePct && (
                     <span className="cst-panel__field-hint">
                       Achieved HDI Premium: {fmtEUR(Math.round(Number(draft.achievedPremium) * Number(draft.hdiSharePct) / 100))}
