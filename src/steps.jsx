@@ -2203,7 +2203,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             <>
               {/* Header: coverage title + stats */}
               <div className="cst-tower-header">
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, width: "100%" }}>
                   {(() => {
                     const chain = breadcrumbFor(selectedCov.coverageKindId, parentMapRef.current, covNameByIdRef.current);
                     const ancestors = chain.slice(0, -1); // exclude the leaf — it's shown big below
