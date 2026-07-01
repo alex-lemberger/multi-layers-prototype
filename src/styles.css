@@ -221,7 +221,7 @@ body {
 
 /* -- Sidebar -- */
 .sidebar {
-  width: 330px; min-width: 330px; background: var(--bg-elev);
+  width: 314px; min-width: 314px; background: var(--bg-elev);
   border-right: 1px solid var(--border); overflow-y: auto;
   display: flex; flex-direction: column;
 }
@@ -2021,6 +2021,7 @@ body {
 
 .fd-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -2031,15 +2032,15 @@ body {
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 8px 12px;
+  padding: 8px 8px;
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
   background: var(--bg-elev);
 }
 .fd-table td {
-  padding: 8px 12px;
+  padding: 8px 8px;
   border-bottom: 1px solid var(--border-soft);
   vertical-align: middle;
+  word-break: break-word;
 }
 .fd-table tr:last-child td {
   border-bottom: none;
@@ -2075,10 +2076,18 @@ body {
 }
 
 .fd-finalise-row {
-  margin-top: 24px;
+  position: fixed;
+  bottom: 0;
+  left: 314px;
+  right: 0;
+  padding: 16px 36px;
   display: flex;
   align-items: center;
   gap: 12px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+  z-index: 10;
 }
 
 /* Top-right stat shown in the Final Decision title row once the offer is finalised */

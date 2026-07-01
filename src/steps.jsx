@@ -3693,7 +3693,7 @@ function FinalDecisionScreen({ layers }) {
                 <table className="fd-table">
                   <thead>
                     <tr>
-                      <th>Program Structure</th>
+                      <th style={{ width: "15%" }}>Program Structure</th>
                       <th>Decision</th>
                       <th>Offered Premium</th>
                       <th>Type of Participation</th>
@@ -3718,13 +3718,10 @@ function FinalDecisionScreen({ layers }) {
                       return (
                         <tr key={li} style={{ background: isActive ? "var(--bg-sunk)" : undefined }}>
                           {/* Program Structure */}
-                          <td>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <td style={{ whiteSpace: "nowrap" }}>
                               <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px" }}>
                                 {layer.type}
                               </span>
-                              <span style={{ fontSize: 12, fontWeight: 600 }}>{layer.name}</span>
-                            </div>
                           </td>
 
                           {/* Decision — read-only badge */}
