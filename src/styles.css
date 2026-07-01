@@ -1976,11 +1976,25 @@ body {
 .fd-status--accepted   { background: #e8f5e9; color: #388e3c; }
 .fd-status--declined   { background: #fce4ec; color: #c62828; }
 .fd-status--mixed      { background: #fff3e0; color: #e65100; }
-.fd-group-header__premium {
+.fd-group-header__premiums {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.fd-group-header__premium-item {
   font-size: 12px;
   font-family: var(--font-mono);
-  color: var(--fg-muted);
+  color: var(--fg);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.fd-group-header__premium-label {
+  font-size: 11px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--fg-soft);
 }
 .fd-group-header__chevron {
   font-size: 11px;
@@ -2049,21 +2063,66 @@ body {
   gap: 12px;
 }
 
-.fd-result-banner {
-  margin-top: 20px;
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-radius: 8px;
-  padding: 12px 16px;
+/* Top-right stat shown in the Final Decision title row once the offer is finalised */
+.fd-finalised-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
-.fd-result-banner__title {
+.fd-finalised-stat__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.fd-finalised-stat__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--fg);
+  letter-spacing: -0.02em;
+}
+.fd-finalised-stat__pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  margin-top: 2px;
+}
+
+/* Audit-style timeline replacing the old single green banner */
+.fd-timeline {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.fd-timeline__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+}
+.fd-timeline__icon {
+  color: var(--accent);
+  font-size: 15px;
+  margin-top: 2px;
+}
+.fd-timeline__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fd-timeline__title {
   font-size: 13px;
   font-weight: 600;
-  color: #2e7d32;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  color: var(--fg);
+}
+.fd-timeline__meta {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
 }
 .lct-pagination__page--active:hover { background: var(--accent); color: #fff; }
 

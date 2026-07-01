@@ -3432,6 +3432,9 @@ let _fdBindDate = (() => {
 let _fdPolicyGroupId = (() => {
   try { return localStorage.getItem("ml_fd_policygroup_v1") || ""; } catch { return ""; }
 })();
+let _fdFinalizedAt = (() => {
+  try { return localStorage.getItem("ml_fd_finalizedat_v1") || ""; } catch { return ""; }
+})();
 let _fdListeners = [];
 
 function _saveFdToLS() {
@@ -3440,7 +3443,15 @@ function _saveFdToLS() {
     localStorage.setItem("ml_fd_finalized_v1", JSON.stringify(_fdFinalized));
     localStorage.setItem("ml_fd_binddate_v1", _fdBindDate);
     localStorage.setItem("ml_fd_policygroup_v1", _fdPolicyGroupId);
+    localStorage.setItem("ml_fd_finalizedat_v1", _fdFinalizedAt);
   } catch {}
+}
+
+// e.g. "01/07/2026 14:23h" — mirrors the "25/06/2026 09:58h" style seen in the
+// real Cyber app's finalised timeline.
+function fmtFdTimestamp(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}h`;
 }
 
 function seedFdDecisions(layers) {
@@ -3482,6 +3493,7 @@ function useFdState() {
       }
     });
     _fdPolicyGroupId = "PG-" + String(Math.floor(100000 + Math.random() * 900000));
+    _fdFinalizedAt = fmtFdTimestamp(new Date());
     _fdFinalized = true;
     _saveFdToLS(); notify();
   };
@@ -3496,6 +3508,7 @@ function useFdState() {
     _fdFinalized = false;
     _fdBindDate = "";
     _fdPolicyGroupId = "";
+    _fdFinalizedAt = "";
     _saveFdToLS(); notify();
   };
 
@@ -3549,6 +3562,18 @@ function FinalDecisionScreen({ layers }) {
   const groupOfferedPremium = (items) =>
     items.reduce((s, { layer }) => s + (layer.premium || 0), 0);
 
+  // Only accepted layers have an achieved premium (matches the per-row column logic)
+  const groupAchievedPremium = (items) =>
+    items.reduce((s, { li }) => {
+      const d = getDecision(li);
+      return s + (d?.decision === "accepted" && d.achievedPremium ? Number(d.achievedPremium) : 0);
+    }, 0);
+
+  // Total achieved premium across all groups — drives the top-right stat once finalised
+  const totalAchievedPremium = Object.values(groups).reduce(
+    (s, items) => s + groupAchievedPremium(items), 0
+  );
+
   const openPanel = (li) => {
     setDraft({ ...(getDecision(li) || {}) });
     setPanelLi(li);
@@ -3575,8 +3600,15 @@ function FinalDecisionScreen({ layers }) {
     <div style={{ display: "flex", gap: 0, position: "relative" }}>
       {/* ---- Main content ---- */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="main__title">
-          Final Decision <span className="layer-badge">All Layers</span>
+        <div className="main__title" style={{ justifyContent: "space-between" }}>
+          <span>Final Decision <span className="layer-badge">All Layers</span></span>
+          {isFinalized && (
+            <div className="fd-finalised-stat">
+              <span className="fd-finalised-stat__label">Achieved Premium</span>
+              <span className="fd-finalised-stat__value">{fmtEUR(totalAchievedPremium)}</span>
+              <span className="fd-finalised-stat__pill">Finalised offer</span>
+            </div>
+          )}
         </div>
         <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
           Please select decision for submitted offer
@@ -3598,6 +3630,7 @@ function FinalDecisionScreen({ layers }) {
         {Object.entries(groups).map(([product, items]) => {
           const status = groupStatus(items);
           const offeredPremium = groupOfferedPremium(items);
+          const achievedPremium = groupAchievedPremium(items);
           const isCollapsed = !!collapsed[product];
 
           return (
@@ -3606,7 +3639,16 @@ function FinalDecisionScreen({ layers }) {
               <div className="fd-group-header" onClick={() => setCollapsed(c => ({ ...c, [product]: !c[product] }))}>
                 <span className="fd-group-header__product">{product}</span>
                 <span className={`fd-group-header__status ${statusClass(status)}`}>{status}</span>
-                <span className="fd-group-header__premium">{offeredPremium ? fmtEUR(offeredPremium) : "—"}</span>
+                <span className="fd-group-header__premiums">
+                  <span className="fd-group-header__premium-item">
+                    <span className="fd-group-header__premium-label">Offered</span>
+                    {offeredPremium ? fmtEUR(offeredPremium) : "—"}
+                  </span>
+                  <span className="fd-group-header__premium-item">
+                    <span className="fd-group-header__premium-label">Achieved</span>
+                    {achievedPremium ? fmtEUR(achievedPremium) : "—"}
+                  </span>
+                </span>
                 <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"} fd-group-header__chevron`} />
               </div>
 
@@ -3619,7 +3661,7 @@ function FinalDecisionScreen({ layers }) {
                       <th>Decision</th>
                       <th>Offered Premium</th>
                       <th>Type of Participation</th>
-                      <th>HDI Share %</th>
+                      <th>Final HDI Share in %</th>
                       <th>Lead Insurer</th>
                       <th>Achieved Premium</th>
                       <th>Achieved HDI Premium</th>
@@ -3747,19 +3789,29 @@ function FinalDecisionScreen({ layers }) {
             </button>
           </div>
         ) : (
-          <div className="fd-result-banner">
-            <div className="fd-result-banner__title">
-              <i className="fa-solid fa-circle-check" style={{ color: "#2e7d32" }} />
-              Offer Finalised — policy numbers shown in the table above
-              <button
-                className="btn btn--outline"
-                style={{ marginLeft: "auto", fontSize: 11, color: "var(--fg-muted)" }}
-                onClick={() => reset(layers)}
-              >
-                <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
-                Reset (demo)
-              </button>
+          <div className="fd-timeline">
+            <div className="fd-timeline__item">
+              <i className="fa-solid fa-circle-check fd-timeline__icon" />
+              <div className="fd-timeline__body">
+                <span className="fd-timeline__title">Offer Finalised</span>
+                <span className="fd-timeline__meta">{_fdFinalizedAt} · Finalised by: —</span>
+              </div>
             </div>
+            <div className="fd-timeline__item">
+              <i className="fa-solid fa-circle-check fd-timeline__icon" />
+              <div className="fd-timeline__body">
+                <span className="fd-timeline__title">Policy Group Created</span>
+                <span className="fd-timeline__meta">Policy Group ID: {_fdPolicyGroupId}</span>
+              </div>
+            </div>
+            <button
+              className="btn btn--outline"
+              style={{ marginTop: 14, fontSize: 11, color: "var(--fg-muted)" }}
+              onClick={() => reset(layers)}
+            >
+              <i className="fa-solid fa-rotate-left" style={{ marginRight: 5 }} />
+              Reset (demo)
+            </button>
           </div>
         )}
       </div>
