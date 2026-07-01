@@ -2092,11 +2092,15 @@ body {
   margin-top: 2px;
 }
 
-/* Audit-style timeline replacing the old single green banner */
+/* Audit-style timeline replacing the old single green banner — kept the same
+   soft green "harmonic" card treatment as the original .fd-result-banner
+   (exact colors: #e8f5e9 / #a5d6a7 / #2e7d32) rather than a bare top-border. */
 .fd-timeline {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-soft);
+  margin-top: 20px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  padding: 14px 18px;
 }
 .fd-timeline__item {
   display: flex;
@@ -2105,7 +2109,7 @@ body {
   padding: 6px 0;
 }
 .fd-timeline__icon {
-  color: var(--accent);
+  color: #2e7d32;
   font-size: 15px;
   margin-top: 2px;
 }
@@ -2117,7 +2121,7 @@ body {
 .fd-timeline__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--fg);
+  color: #2e7d32;
 }
 .fd-timeline__meta {
   font-size: 12px;
