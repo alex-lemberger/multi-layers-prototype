@@ -455,6 +455,7 @@ function App() {
     });
   });
   const [activeLayerIdx, setActiveLayerIdx] = useState_app(0);
+  const [layerMode, setLayerMode] = useState_app(() => loadFromLS("ml_layer_mode_v1", "dic")); // "follow-form" | "dic"
   const [activeNav, setActiveNav] = useState_app(() => {
     const hash = window.location.hash.replace("#", "");
     const allNavIds = [...NAV_ITEMS_A, ...NAV_ITEMS_B].flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
@@ -478,6 +479,7 @@ function App() {
   // Persist layers to localStorage
   useEffect_app(() => { saveToLS(LS_KEY_LAYERS, layers); }, [layers]);
   useEffect_app(() => { saveToLS("ml_variant", variant); }, [variant]);
+  useEffect_app(() => { saveToLS("ml_layer_mode_v1", layerMode); }, [layerMode]);
 
   // Sync hash with active nav
   useEffect_app(() => { window.location.hash = activeNav; }, [activeNav]);
@@ -546,7 +548,7 @@ function App() {
     switch (activeNav) {
       case "general-data":       return <GeneralDataScreen layer={activeLayer} allLayers={layers} />;
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
-      case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
+      case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} layerMode={layerMode} onLayerModeChange={setLayerMode} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading-v2": return <CoverageSpreadingV2Screen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
@@ -637,7 +639,10 @@ function App() {
                 {/* Sub-navigation items (visible when layers exist) */}
                 {item.children && layers.length > 1 && (
                   <div className="nav-children">
-                    {item.children.map(child => (
+                    {item.children.filter(child => {
+                      if (layerMode === "follow-form" && ["coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "layered-coverage"].includes(child.id)) return false;
+                      return true;
+                    }).map(child => (
                       <div key={child.id}
                         className={"nav-item nav-item--child" +
                           (child.id === activeNav ? " nav-item--active" : "")

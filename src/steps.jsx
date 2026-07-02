@@ -409,8 +409,9 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
 }
 
 // ---- Layers Workflow screen (Variant B — after Program Coverage) ----
-function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit }) {
+function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit, layerMode, onLayerModeChange }) {
   const [filterParticipating, setFilterParticipating] = useS(false);
+  const [showModePanel, setShowModePanel] = useS(false);
   const displayLayers = filterParticipating ? layers.filter(l => l.participating) : layers;
 
   return (
@@ -419,6 +420,14 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
       <p className="main__subtitle" style={{marginTop: -12, marginBottom: 24}}>
         Define the layer structure for this option. Each layer inherits the coverages selected in Program Coverage.
       </p>
+
+      {/* Layer Mode Card */}
+      <div style={{ marginBottom: 28 }}>
+        <DisplayCard title="Layer Mode" onEdit={() => setShowModePanel(true)} badge={layerMode === "follow-form" ? "Follow Form" : "DIC"} badgeType={layerMode === "follow-form" ? "gray" : "green"}>
+          <DisplayField label="Mode" value={layerMode === "follow-form" ? "Follow Form" : "DIC (Difference in Conditions)"} />
+          <DisplayField label="Description" value={layerMode === "follow-form" ? "All layers share the same conditions and coverages as the Primary Layer." : "Coverages can be configured individually per layer."} />
+        </DisplayCard>
+      </div>
 
       {/* Layer Management Table */}
       <div className="ls-section">
@@ -506,6 +515,44 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
           <span className="ls-cov-chip">Incident Response Costs</span>
         </div>
       </div>
+
+      {/* Layer Mode slide panel */}
+      {showModePanel && (
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
+            <div className="cst-panel__header">
+              <span className="cst-panel__title">Layer Mode</span>
+              <button className="cst-panel__close" onClick={() => setShowModePanel(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="cst-panel__body" style={{ padding: "20px 24px" }}>
+              <p style={{ fontSize: 13, color: "var(--fg-muted)", marginBottom: 20, lineHeight: 1.5 }}>
+                Choose how coverages are handled across layers. This affects whether the Coverage Spreading screen is available.
+              </p>
+              <div className="ls-mode-options ls-mode-options--vertical">
+                <label className={`ls-mode-option${layerMode === "follow-form" ? " ls-mode-option--active" : ""}`}>
+                  <input type="radio" name="layerMode" value="follow-form" checked={layerMode === "follow-form"} onChange={() => onLayerModeChange("follow-form")} />
+                  <div className="ls-mode-option__content">
+                    <span className="ls-mode-option__title">Follow Form</span>
+                    <span className="ls-mode-option__desc">All layers share the same conditions and coverages as the Primary Layer. No per-layer configuration needed.</span>
+                  </div>
+                </label>
+                <label className={`ls-mode-option${layerMode === "dic" ? " ls-mode-option--active" : ""}`}>
+                  <input type="radio" name="layerMode" value="dic" checked={layerMode === "dic"} onChange={() => onLayerModeChange("dic")} />
+                  <div className="ls-mode-option__content">
+                    <span className="ls-mode-option__title">DIC (Difference in Conditions)</span>
+                    <span className="ls-mode-option__desc">Coverages can be excluded or configured individually per layer via the Coverage Spreading screen.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={() => setShowModePanel(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

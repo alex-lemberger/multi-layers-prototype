@@ -430,6 +430,7 @@ body {
   font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
 }
 .dcard__badge--green { background: var(--accent-soft); color: var(--accent-ink); }
+.dcard__badge--gray { background: #f0f0f0; color: #575757; }
 .dcard__badge--pending { background: #fff3e0; color: #e65100; }
 
 .dcard__edit {
@@ -776,6 +777,65 @@ body {
 .ov-layer:hover .ov-link { opacity: 1; }
 
 /* ========= LAYERS SETTINGS SCREEN ========= */
+.ls-mode-section {
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.ls-mode-section__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.ls-mode-options {
+  display: flex;
+  gap: 12px;
+}
+.ls-mode-options--vertical {
+  flex-direction: column;
+}
+.ls-mode-option {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ls-mode-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-sunk);
+}
+.ls-mode-option--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ls-mode-option input[type="radio"] {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.ls-mode-option__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ls-mode-option__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.ls-mode-option__desc {
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+
 .ls-section { margin-bottom: 32px; }
 .ls-section__header {
   display: flex; align-items: center; justify-content: space-between;
