@@ -154,20 +154,19 @@ const NAV_ITEMS_A = [
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
-  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
+  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "", hidden: true },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
     { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
     { id: "premium-rates",        label: "Premium Rates",       icon: "fa-solid fa-percent" },
   ]},
-  { id: "analysis",           label: "Analysis / Choice",   icon: "fa-solid fa-toolbox",       status: "" },
   { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
 // Variant B: Layers as workflow step (after Program Coverage, before Premium)
 const NAV_ITEMS_B = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
-  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
+  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done", hidden: true },
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
@@ -184,7 +183,6 @@ const NAV_ITEMS_B = [
     { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
     { id: "premium-rates",        label: "Premium Rates",       icon: "fa-solid fa-percent" },
   ]},
-  { id: "analysis",           label: "Analysis / Choice",   icon: "fa-solid fa-toolbox",       status: "" },
   { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
@@ -612,7 +610,7 @@ function App() {
               <span className="sidebar__section-label">Navigation</span>
             </div>
             <div className="nav-stepper">
-            {NAV_ITEMS.map((item, idx) => (
+            {NAV_ITEMS.filter(item => !item.hidden).map((item, idx) => (
               <React.Fragment key={item.id + (item.children ? '-parent' : '')}>
                 <div
                   className={"nav-item" +
@@ -665,7 +663,7 @@ function App() {
             <h1 className="partner-banner__title">Suppella Partner International GmbH</h1>
             <div className="partner-banner__chips">
               <OptionDropdown />
-              {!["coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision"].includes(activeNav) && (
+              {!["general-data", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision"].includes(activeNav) && (
                 <>
                   <span className="pb-divider" />
                   <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
