@@ -2343,6 +2343,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [showOnlyActive, setShowOnlyActive] = useS(false);
   const [hideNonParticipating, setHideNonParticipating] = useS(false);
   const [hideNonAssigned, setHideNonAssigned] = useS(false);
+  const [layerFilter, setLayerFilter] = useS("");
   const [panelTarget, setPanelTarget] = useS(null); // { layerIdx } | null
   // Draft state for the open panel
   const [panelDraft, setPanelDraft] = useS({});
@@ -2581,21 +2582,10 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
         Assign coverages to layers and configure limits per layer.
       </p>
 
-      {/* Header spanning both columns */}
-      {selectedCov && (
-        <div className="cst-tower-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-          <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
-          <span className="cst-active-layer-label">
-            <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
-            <strong>{layers[activeLayerIdx]?.name || "—"}</strong>
-          </span>
-        </div>
-      )}
-
       <div className="cst-layout">
         <div className="cst-tree-panel">
-          <div className="cst-tree-header">
-            <span className="cst-tree-header__title">Coverages</span>
+          <div className="cst-panel-header">
+            <span className="cst-panel-header__title">Coverages</span>
             <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
               <i className="fa-solid fa-magnifying-glass" />
               <input
@@ -2603,6 +2593,12 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                 value={filter} onChange={e => setFilter(e.target.value)}
               />
             </div>
+            {selectedCov && (
+              <span className="cst-active-layer-label" style={{ flexShrink: 0 }}>
+                <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
+                <strong>{layers[activeLayerIdx]?.name || "—"}</strong>
+              </span>
+            )}
           </div>
           <div className="cst-filter-bar">
             <label className="cst-filter-toggle">
@@ -2644,6 +2640,19 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
 
         {/* ---- LEFT: Tower (layers-first) ---- */}
         <div className="cst-tower-panel">
+          <div className="cst-panel-header">
+            <span className="cst-panel-header__title">Layers</span>
+            {selectedCov && (
+              <span className="cst-panel-header__sub">{selectedCov.coverageName}</span>
+            )}
+            <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
+              <i className="fa-solid fa-magnifying-glass" />
+              <input
+                type="text" placeholder="Filter…"
+                value={layerFilter} onChange={e => setLayerFilter(e.target.value)}
+              />
+            </div>
+          </div>
           {!selectedCov ? (
             <div className="cst-tower-empty">
               <i className="fa-solid fa-layer-group" style={{ fontSize: 32, color: "var(--fg-faint)" }} />
@@ -2664,8 +2673,10 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               </div>
 
               {/* Tower */}
+              <div className="cst-tower-scroll">
               <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
                 {layers.filter(l => {
+                  if (layerFilter && !l.name.toLowerCase().includes(layerFilter.toLowerCase())) return false;
                   if (hideNonParticipating && !l.participating) return false;
                   if (hideNonAssigned && selectedCov) {
                     const li = layers.indexOf(l);
@@ -2763,6 +2774,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </>
           )}
