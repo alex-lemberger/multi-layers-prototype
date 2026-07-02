@@ -1328,6 +1328,130 @@ function LayeredCoveragePocScreen({ layers, activeLayerIdx, onLayerChange }) {
   );
 }
 
+// =========================================================================
+// LAYER OVERVIEW — compact summary table before Final Decision
+// =========================================================================
+function LayerOverviewScreen({ layers, activeLayerIdx, onLayerChange }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const { getAssignment } = useSpreadingState();
+
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => setCoverageTree(data))
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  // Count all coverages in the tree
+  const countAll = (items) => {
+    let n = 0;
+    items.forEach(c => { n++; if (c.children) n += countAll(c.children); });
+    return n;
+  };
+
+  // Count coverages per layer by status
+  const countByStatus = (items, layerIdx) => {
+    let included = 0, excluded = 0, locked = 0;
+    const walk = (nodes) => {
+      nodes.forEach(cov => {
+        const a = getAssignment(cov.coverageKindId, layerIdx);
+        if (a?.excluded) excluded++;
+        else included++;
+        if (cov.children) walk(cov.children);
+      });
+    };
+    walk(items);
+    return { included, excluded, locked };
+  };
+
+  const totalCoverages = coverageTree ? countAll(coverageTree) : 0;
+
+  return (
+    <div>
+      <div className="main__title">Layer Overview</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Summary of all layers and their coverage status before Final Decision.
+      </p>
+
+      <table className="prop-tbl" style={{ width: "100%" }}>
+        <thead>
+          <tr>
+            <th className="prop-tbl__th">Layer</th>
+            <th className="prop-tbl__th">Type</th>
+            <th className="prop-tbl__th">Range</th>
+            <th className="prop-tbl__th">Product</th>
+            <th className="prop-tbl__th" style={{ textAlign: "center" }}>Included</th>
+            <th className="prop-tbl__th" style={{ textAlign: "center" }}>Excluded</th>
+            <th className="prop-tbl__th" style={{ textAlign: "right" }}>Premium</th>
+            <th className="prop-tbl__th" style={{ textAlign: "center" }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {layers.map((layer, li) => {
+            const counts = coverageTree ? countByStatus(coverageTree, li) : { included: 0, excluded: 0 };
+            const isActive = li === activeLayerIdx;
+            return (
+              <tr
+                key={layer.id}
+                className="prop-tbl__row"
+                style={{ cursor: "pointer", background: isActive ? "var(--accent-soft, #f0f9e8)" : undefined }}
+                onClick={() => onLayerChange(li)}
+              >
+                <td className="prop-tbl__td prop-tbl__td--name" style={{ fontWeight: 600 }}>
+                  {layer.name}
+                </td>
+                <td className="prop-tbl__td">
+                  <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}>
+                    {layer.type || "Excess"}
+                  </span>
+                </td>
+                <td className="prop-tbl__td" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                  {fmtShortRange(layer.rangeFrom, layer.rangeTo)}
+                </td>
+                <td className="prop-tbl__td" style={{ fontSize: 12 }}>
+                  {layer.product || "—"}
+                </td>
+                <td className="prop-tbl__td" style={{ textAlign: "center" }}>
+                  <span style={{ color: "var(--hdi-universal-green, #65a518)", fontWeight: 600 }}>
+                    {counts.included}
+                  </span>
+                  <span style={{ color: "var(--fg-muted)", fontSize: 11 }}> / {totalCoverages}</span>
+                </td>
+                <td className="prop-tbl__td" style={{ textAlign: "center" }}>
+                  {counts.excluded > 0 ? (
+                    <span style={{ color: "var(--hdi-bright-red, #e60018)", fontWeight: 600 }}>{counts.excluded}</span>
+                  ) : (
+                    <span style={{ color: "var(--fg-muted)" }}>0</span>
+                  )}
+                </td>
+                <td className="prop-tbl__td" style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                  {layer.premium ? fmtEUR(Number(layer.premium)) : "—"}
+                </td>
+                <td className="prop-tbl__td" style={{ textAlign: "center" }}>
+                  {!layer.participating ? (
+                    <span className="fd-status fd-status--declined" style={{ fontSize: 11 }}>Non-participating</span>
+                  ) : counts.excluded === 0 ? (
+                    <span className="fd-status fd-status--accepted" style={{ fontSize: 11 }}>All included</span>
+                  ) : (
+                    <span className="fd-status fd-status--offered" style={{ fontSize: 11 }}>Partial</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {coverageTree && (
+        <div style={{ marginTop: 16, fontSize: 12, color: "var(--fg-muted)" }}>
+          <i className="fa-solid fa-info-circle" style={{ marginRight: 6 }} />
+          {totalCoverages} coverages across {layers.length} layers. Click a row to switch to that layer.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Layered Coverage screen — tree rows × layer columns ----
 // Left column: full coverage hierarchy (indented, collapsible) from coverage.json
 // Right columns: one per layer — showing how each coverage is spread across the program
