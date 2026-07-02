@@ -170,13 +170,7 @@ const NAV_ITEMS_B = [
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
-    { id: "coverage-spreading-v2", label: "Coverage V2",         icon: "fa-solid fa-list" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
-    { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
-    // Property + Liability hidden until design team delivers screenshots:
-    // { id: "prop-define",       label: "Define Coverage (Property)", icon: "fa-solid fa-building" },
-    // { id: "prop-limits",       label: "Limits / Ded. (Property)", icon: "fa-solid fa-sliders" },
-    // { id: "liability-coverage",label: "Coverage (Liability)", icon: "fa-solid fa-scale-balanced" },
   ]},
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
@@ -459,7 +453,8 @@ function App() {
   const [activeNav, setActiveNav] = useState_app(() => {
     const hash = window.location.hash.replace("#", "");
     const allNavIds = [...NAV_ITEMS_A, ...NAV_ITEMS_B].flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
-    return allNavIds.includes(hash) ? hash : "general-data";
+    const hiddenRoutes = ["layered-coverage-poc", "coverage-spreading-v2", "layered-coverage"];
+    return allNavIds.includes(hash) || hiddenRoutes.includes(hash) ? hash : "general-data";
   });
   const [showAddDrawer, setShowAddDrawer] = useState_app(false);
   const [deleteTarget, setDeleteTarget] = useState_app(null);
@@ -488,7 +483,7 @@ function App() {
       const hash = window.location.hash.replace("#", "");
       const allNavIds = NAV_ITEMS.flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
       // Hidden routes (no nav item, direct URL only)
-      const hiddenRoutes = ["layered-coverage-poc"];
+      const hiddenRoutes = ["layered-coverage-poc", "coverage-spreading-v2", "layered-coverage"];
       if (allNavIds.includes(hash) || hiddenRoutes.includes(hash)) setActiveNav(hash);
     };
     window.addEventListener("hashchange", onHash);

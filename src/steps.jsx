@@ -2147,9 +2147,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     return cov.children.some(c => c.coverageName.toLowerCase().includes(f.toLowerCase()) || hasDescendantMatch(c, f));
   }
 
-  const countIncluded = (kindId) =>
-    layers.filter((_, li) => !getAssignment(kindId, li)?.excluded).length;
-
   const toggle = (kindId, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [kindId]: !c[kindId] })); };
   const selectCov = (cov) => { setSelectedKindId(cov.coverageKindId); setSelectedCov(cov); setPanelTarget(null); };
 
@@ -2217,11 +2214,21 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     <div>
       <div className="main__title">Coverage Spreading (Cyber)</div>
       <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
-        Select a coverage on the left, then assign it to layers and configure limits on the right.
+        Assign coverages to layers and configure limits per layer.
       </p>
 
+      {/* Header spanning both columns */}
+      {selectedCov && (
+        <div className="cst-tower-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+          <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
+          <span className="cst-active-layer-label">
+            <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
+            <strong>{layers[activeLayerIdx]?.name || "—"}</strong>
+          </span>
+        </div>
+      )}
+
       <div className="cst-layout">
-        {/* ---- LEFT: Coverage tree ---- */}
         <div className="cst-tree-panel">
           <div className="cst-tree-header">
             <span className="cst-tree-header__title">Coverages</span>
@@ -2241,7 +2248,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
           </div>
           <div className="cst-tree-scroll">
             {treeRows.map(({ cov, depth, hasChildren, isCollapsed, locked }) => {
-              const included = countIncluded(cov.coverageKindId);
               const isSelected = cov.coverageKindId === selectedKindId;
               return (
                 <div
@@ -2265,76 +2271,31 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                     {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
                   </span>
                   <span className="cst-tree-row__label">{cov.coverageName}</span>
-                  {included > 0 && !locked && (
-                    <span className={`cst-layer-count ${included === layers.length ? "cst-layer-count--full" : "cst-layer-count--partial"}`}>
-                      {included}/{layers.length}
-                    </span>
-                  )}
-                  {isSelected && <i className="fa-solid fa-chevron-right cst-tree-row__arrow" style={{ marginLeft: included > 0 ? 6 : "auto" }} />}
+                  {isSelected && <i className="fa-solid fa-chevron-right cst-tree-row__arrow" style={{ marginLeft: "auto" }} />}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* ---- RIGHT: Tower ---- */}
+        {/* ---- LEFT: Tower (layers-first) ---- */}
         <div className="cst-tower-panel">
           {!selectedCov ? (
             <div className="cst-tower-empty">
               <i className="fa-solid fa-layer-group" style={{ fontSize: 32, color: "var(--fg-faint)" }} />
-              <span>Select a coverage on the left to assign it to layers</span>
+              <span>Select a coverage on the right to configure its layers</span>
             </div>
           ) : (
             <>
-              {/* Header: coverage title + stats */}
-              <div className="cst-tower-header">
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, width: "100%" }}>
-                  {(() => {
-                    const chain = breadcrumbFor(selectedCov.coverageKindId, parentMapRef.current, covNameByIdRef.current);
-                    return chain.length > 1 && (
-                      <span className="cst-tower-header__breadcrumb">
-                        {chain.map((item, i) => {
-                          const isLast = i === chain.length - 1;
-                          return (
-                            <F key={i}>
-                              {i > 0 && <i className="fa-solid fa-chevron-right cst-tower-header__breadcrumb-sep" />}
-                              {isLast
-                                ? <span className="cst-tower-header__breadcrumb-current">{item.name}</span>
-                                : <span className="cst-tower-header__breadcrumb-link" onClick={() => { const cov = findCovById(coverageTree, item.kindId); if (cov) selectCov(cov); }}>{item.name}</span>
-                              }
-                            </F>
-                          );
-                        })}
-                      </span>
-                    );
-                  })()}
-                  <span className="cst-tower-header__cov">{selectedCov.coverageName}</span>
-                  <span className="cst-tower-header__stats">
-                    {includedCount} of {layers.length} {includedCount === 1 ? "layer" : "layers"} included
-                  </span>
-                </div>
-              </div>
-
-              {/* Legend — moved to top (local test); pills reuse the real status-badge classes
-                  (.cst-block-status-badge--*) since those are the actually-colorful part of a
-                  block — the card backgrounds themselves are intentionally near-white. */}
-              <div className="lc-legend cst-tower-legend">
-                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--included cst-legend-swatch">Included</span></span>
-                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--excluded cst-legend-swatch">Excluded</span></span>
-                <span className="lc-legend__item cst-tower-legend__item"><span className="cst-block-status-badge cst-block-status-badge--locked cst-legend-swatch">Locked by cascade</span></span>
-                <span className="lc-legend__item" style={{ marginLeft: "auto", color: "var(--fg-faint)", fontSize: 11 }}>
-                  <i className="fa-solid fa-pencil" style={{ marginRight: 4 }} /> Use pencil icon to configure a layer block
-                </span>
-              </div>
-
+              {/* Filters */}
               <div className="cst-filter-bar">
                 <label className="cst-filter-toggle">
                   <input type="checkbox" checked={hideNonParticipating} onChange={e => setHideNonParticipating(e.target.checked)} />
-                  <span>Hide non-participating layers</span>
+                  <span>Hide non-participating</span>
                 </label>
                 <label className="cst-filter-toggle">
                   <input type="checkbox" checked={hideNonAssigned} onChange={e => setHideNonAssigned(e.target.checked)} />
-                  <span>Hide non-assigned layers</span>
+                  <span>Hide non-assigned</span>
                 </label>
               </div>
 
@@ -2365,14 +2326,15 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   if (isLocked) blockClass += " cst-layer-block--locked";
                   else if (isExcluded) blockClass += " cst-layer-block--excluded";
                   else blockClass += " cst-layer-block--included";
-                  if (isActive) blockClass += " cst-layer-block--active";
+                  if (isActive && !isLocked && !isExcluded) blockClass += " cst-layer-block--active";
                   if (!isLocked) blockClass += " cst-layer-block--readonly";
 
                   return (
                     <div
                       key={layer.id}
                       className={blockClass}
-                      style={{ minHeight: blockHeight, outline: isPanelOpen ? "2px solid var(--accent)" : undefined }}
+                      style={{ minHeight: blockHeight, cursor: (isLocked || isExcluded) ? "default" : "pointer" }}
+                      onClick={() => { if (!isLocked && !isExcluded) onLayerChange(li); }}
                     >
                       <div className="cst-block-head">
                         <span
@@ -3142,6 +3104,14 @@ function CoverageSpreadingV3Screen({ layers, activeLayerIdx, onLayerChange }) {
     return map;
   }
 
+  function findCovByIdV3(items, kindId) {
+    for (const item of items) {
+      if (item.coverageKindId === kindId) return item;
+      if (item.children) { const f = findCovByIdV3(item.children, kindId); if (f) return f; }
+    }
+    return null;
+  }
+
   function isCascadeLockedV3(kindId, layerIdx, parentMap) {
     if (layerIdx === 0) return false;
     for (let j = 1; j < layerIdx; j++) {
@@ -3176,25 +3146,21 @@ function CoverageSpreadingV3Screen({ layers, activeLayerIdx, onLayerChange }) {
     setExcluded(kindId, activeLayerIdx, !(a?.excluded));
   };
 
-  // Accordion: open/close edit form
-  const toggleAccordion = (kindId) => {
-    if (expandedKindId === kindId) {
-      setExpandedKindId(null);
-    } else {
-      const a = getAssignment(kindId, activeLayerIdx) || {};
-      setEditDraft({
-        sublimit: a.sublimit || "", sharedSublimit: a.sharedSublimit || "",
-        deductible: a.deductible || "", retroDateYears: a.retroDateYears || "",
-        indemnityPeriodValue: a.indemnityPeriodValue || "", indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
-        waitingPeriodValue: a.waitingPeriodValue || "", waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
-      });
-      setExpandedKindId(kindId);
-      setInheritToExcess(false);
-    }
+  // Panel: open/close edit panel
+  const openPanel = (kindId) => {
+    const a = getAssignment(kindId, activeLayerIdx) || {};
+    setEditDraft({
+      sublimit: a.sublimit || "", sharedSublimit: a.sharedSublimit || "",
+      deductible: a.deductible || "", retroDateYears: a.retroDateYears || "",
+      indemnityPeriodValue: a.indemnityPeriodValue || "", indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
+      waitingPeriodValue: a.waitingPeriodValue || "", waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
+    });
+    setExpandedKindId(kindId);
+    setInheritToExcess(false);
   };
 
-  // Save accordion form
-  const saveAccordion = () => {
+  // Save panel form
+  const savePanel = () => {
     if (!expandedKindId) return;
     const fields = { ...editDraft };
     const key = expandedKindId + "_" + activeLayerIdx;
@@ -3340,82 +3306,105 @@ function CoverageSpreadingV3Screen({ layers, activeLayerIdx, onLayerChange }) {
                 {status === "included" && (
                   <button
                     className={`csv3-edit-btn${isExpanded ? " csv3-edit-btn--active" : ""}`}
-                    onClick={e => { e.stopPropagation(); toggleAccordion(kindId); }}
+                    onClick={e => { e.stopPropagation(); openPanel(kindId); }}
                     title="Configure coverage"
                   >
                     <i className={`fa-solid fa-${isExpanded ? "chevron-up" : "pen"}`} style={{ fontSize: 11 }} />
                   </button>
                 )}
               </div>
-
-              {/* Accordion edit form */}
-              {isExpanded && status === "included" && (
-                <div className="csv3-accordion" style={{ marginLeft: 16 + depth * 24 + 20 }}>
-                  <div className="csv3-accordion__grid">
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Sublimit</label>
-                      <input className="form-input" type="number" placeholder="—"
-                        value={editDraft.sublimit} onChange={e => setEditDraft(d => ({ ...d, sublimit: e.target.value }))} />
-                    </div>
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Shared Sublimit</label>
-                      <input className="form-input" type="number" placeholder="—"
-                        value={editDraft.sharedSublimit} onChange={e => setEditDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
-                    </div>
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Deductible</label>
-                      <input className="form-input" type="number" placeholder="—"
-                        value={editDraft.deductible} onChange={e => setEditDraft(d => ({ ...d, deductible: e.target.value }))} />
-                    </div>
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Retro Date (Years)</label>
-                      <input className="form-input" type="number" placeholder="—"
-                        value={editDraft.retroDateYears} onChange={e => setEditDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
-                    </div>
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Indemnity Period</label>
-                      <div className="csv3-field__combo">
-                        <input className="form-input" type="number" placeholder="—" style={{ flex: 1 }}
-                          value={editDraft.indemnityPeriodValue} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
-                        <select className="form-input form-select" style={{ width: 90 }}
-                          value={editDraft.indemnityPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
-                          <option value="MONTH">Months</option>
-                          <option value="HOUR">Hours</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="csv3-field">
-                      <label className="csv3-field__label">Waiting Period</label>
-                      <div className="csv3-field__combo">
-                        <input className="form-input" type="number" placeholder="—" style={{ flex: 1 }}
-                          value={editDraft.waitingPeriodValue} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
-                        <select className="form-input form-select" style={{ width: 90 }}
-                          value={editDraft.waitingPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
-                          <option value="MONTH">Months</option>
-                          <option value="HOUR">Hours</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Inherit toggle (only on Primary layer) */}
-                  {activeLayerIdx === 0 && (
-                    <label className="csv3-inherit-toggle">
-                      <input type="checkbox" checked={inheritToExcess} onChange={e => setInheritToExcess(e.target.checked)} />
-                      <span>Apply values to all excess layers on save</span>
-                    </label>
-                  )}
-
-                  <div className="csv3-accordion__actions">
-                    <button className="btn btn--primary" onClick={saveAccordion}>Save</button>
-                    <button className="btn btn--outline" onClick={() => setExpandedKindId(null)}>Cancel</button>
-                  </div>
-                </div>
-              )}
             </React.Fragment>
           );
         })}
       </div>
+
+      {/* Slide panel for editing */}
+      {expandedKindId && (() => {
+        const cov = coverageTree && findCovByIdV3(coverageTree, expandedKindId);
+        const status = getStatus(expandedKindId, activeLayerIdx);
+        if (!cov || status !== "included") return null;
+        return (
+          <div className="cst-panel-overlay">
+            <div className="cst-panel">
+              <div className="cst-panel__header">
+                <div className="cst-panel__titles">
+                  <span className="cst-panel__layer">{activeLayer?.name || "Layer"}</span>
+                  <span className="cst-panel__cov">{cov.coverageName}</span>
+                </div>
+                <button className="btn btn--outline" style={{ padding: "4px 8px", lineHeight: 1 }} onClick={() => setExpandedKindId(null)}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+              <div className="cst-panel__body">
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Sublimit (agg)</label>
+                  <EuroInput value={editDraft.sublimit} onChange={v => setEditDraft(d => ({ ...d, sublimit: v }))} placeholder="—" />
+                </div>
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Shared Sublimit (agg)</label>
+                  <EuroInput value={editDraft.sharedSublimit} onChange={v => setEditDraft(d => ({ ...d, sharedSublimit: v }))} placeholder="—" />
+                </div>
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Deductible (absolute)</label>
+                  <EuroInput value={editDraft.deductible} onChange={v => setEditDraft(d => ({ ...d, deductible: v }))} placeholder="—" />
+                </div>
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Retroactive Cover</label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input className="cst-panel-input" type="number" placeholder="—" style={{ flex: 1 }}
+                      value={editDraft.retroDateYears} onChange={e => setEditDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
+                    <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>years</span>
+                  </div>
+                </div>
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Indemnity Period</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className="cst-panel-input" type="number" placeholder="—" style={{ flex: 1 }}
+                      value={editDraft.indemnityPeriodValue} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
+                    <select className="cst-panel-input" style={{ width: 90 }}
+                      value={editDraft.indemnityPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
+                      <option value="MONTH">Months</option>
+                      <option value="HOUR">Hours</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="cst-panel__field">
+                  <label className="cst-panel__field-label">Waiting Period</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className="cst-panel-input" type="number" placeholder="—" style={{ flex: 1 }}
+                      value={editDraft.waitingPeriodValue} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
+                    <select className="cst-panel-input" style={{ width: 90 }}
+                      value={editDraft.waitingPeriodUnit} onChange={e => setEditDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
+                      <option value="MONTH">Months</option>
+                      <option value="HOUR">Hours</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Inherit toggle (Primary only) */}
+                {activeLayerIdx === 0 && (
+                  <label className="cst-panel__inherit-toggle" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, fontSize: 12 }}>
+                    <input type="checkbox" checked={inheritToExcess} onChange={e => setInheritToExcess(e.target.checked)} />
+                    <span>Apply values to all excess layers on save</span>
+                  </label>
+                )}
+              </div>
+              <div className="cst-panel__footer">
+                <button className="btn btn--primary" onClick={savePanel}>Save</button>
+                {activeLayerIdx > 0 && (() => {
+                  const a = getAssignment(expandedKindId, activeLayerIdx) || {};
+                  return a.excluded
+                    ? <button className="btn btn--outline" style={{ color: "var(--hdi-universal-green, #65a518)", borderColor: "var(--hdi-universal-green, #65a518)" }}
+                        onClick={() => { setExcluded(expandedKindId, activeLayerIdx, false); setExpandedKindId(null); }}>Restore to layer</button>
+                    : <button className="btn btn--outline" style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }}
+                        onClick={() => { setExcluded(expandedKindId, activeLayerIdx, true); setExpandedKindId(null); }}>Exclude from layer</button>;
+                })()}
+                <button className="btn btn--outline" onClick={() => setExpandedKindId(null)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Legend */}
       <div className="csv3-legend">
