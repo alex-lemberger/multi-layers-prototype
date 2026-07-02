@@ -2049,7 +2049,26 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       }
       return c.children ? { ...c, children: toggle(c.children) } : c;
     });
-    setCoverageTree(prev => toggle(prev));
+    setCoverageTree(prev => {
+      const next = toggle(prev);
+      // If deselecting the currently viewed coverage or one of its ancestors, clear tower
+      if (selectedKindId) {
+        const isAncestor = (id, targetId, pMap) => {
+          let cur = targetId;
+          while (pMap[cur]) { cur = pMap[cur]; if (cur === id) return true; }
+          return false;
+        };
+        const deselecting = findCovById(next, kindId);
+        if (deselecting && !deselecting.selected) {
+          if (kindId === selectedKindId || isAncestor(kindId, selectedKindId, parentMapRef.current)) {
+            setSelectedKindId(null);
+            setSelectedCov(null);
+            setPanelTarget(null);
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const flattenTree = (items, depth, parentDeselected) => {
@@ -2182,7 +2201,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   key={cov.coverageKindId}
                   className={`cst-tree-row${cov.selected ? " cst-tree-row--checked" : ""}${isSelected ? " cst-tree-row--selected" : ""}${locked ? " cst-tree-row--locked" : ""}`}
                   style={{ paddingLeft: 12 + depth * 22 }}
-                  onClick={() => !locked && selectCov(cov)}
+                  onClick={() => !locked && cov.selected && selectCov(cov)}
                 >
                   {hasChildren ? (
                     <button className="ct-chevron" style={{ flexShrink: 0 }} onClick={e => toggle(cov.coverageKindId, e)}>
