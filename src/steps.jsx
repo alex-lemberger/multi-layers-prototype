@@ -1990,15 +1990,24 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   }
 
   // Full ancestor chain (root first) for the tower header breadcrumb —
-  // e.g. ["Own losses", "Incident Response Costs", "Forensic Investigations"]
+  // Returns [{name, kindId}, ...] e.g. [{name:"Own losses", kindId:"OL"}, ...]
   function breadcrumbFor(kindId, parentMap, nameMap) {
-    const chain = [nameMap[kindId]];
+    const chain = [{ name: nameMap[kindId], kindId }];
     let current = kindId;
     while (parentMap[current]) {
       current = parentMap[current];
-      chain.unshift(nameMap[current]);
+      chain.unshift({ name: nameMap[current], kindId: current });
     }
-    return chain.filter(Boolean);
+    return chain.filter(item => item.name);
+  }
+
+  // Find a coverage object by its kindId in the tree (recursive)
+  function findCovById(items, kindId) {
+    for (const item of items) {
+      if (item.coverageKindId === kindId) return item;
+      if (item.children) { const f = findCovById(item.children, kindId); if (f) return f; }
+    }
+    return null;
   }
 
   function isCascadeLocked(kindId, layerIdx, parentMap) {
@@ -2206,15 +2215,20 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, width: "100%" }}>
                   {(() => {
                     const chain = breadcrumbFor(selectedCov.coverageKindId, parentMapRef.current, covNameByIdRef.current);
-                    const ancestors = chain.slice(0, -1); // exclude the leaf — it's shown big below
-                    return ancestors.length > 0 && (
+                    return chain.length > 1 && (
                       <span className="cst-tower-header__breadcrumb">
-                        {ancestors.map((name, i) => (
-                          <F key={i}>
-                            {i > 0 && <i className="fa-solid fa-chevron-right cst-tower-header__breadcrumb-sep" />}
-                            <span>{name}</span>
-                          </F>
-                        ))}
+                        {chain.map((item, i) => {
+                          const isLast = i === chain.length - 1;
+                          return (
+                            <F key={i}>
+                              {i > 0 && <i className="fa-solid fa-chevron-right cst-tower-header__breadcrumb-sep" />}
+                              {isLast
+                                ? <span className="cst-tower-header__breadcrumb-current">{item.name}</span>
+                                : <span className="cst-tower-header__breadcrumb-link" onClick={() => { const cov = findCovById(coverageTree, item.kindId); if (cov) selectCov(cov); }}>{item.name}</span>
+                              }
+                            </F>
+                          );
+                        })}
                       </span>
                     );
                   })()}

@@ -1549,6 +1549,20 @@ body {
   color: var(--fg-faint);
 }
 
+.cst-tower-header__breadcrumb-link {
+  cursor: pointer;
+  color: var(--accent);
+  transition: color 0.15s;
+}
+.cst-tower-header__breadcrumb-link:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
+
+.cst-tower-header__breadcrumb-current {
+  color: var(--fg-muted);
+}
+
 .cst-tower-header__cov {
   font-size: 16px;
   font-weight: 700;
