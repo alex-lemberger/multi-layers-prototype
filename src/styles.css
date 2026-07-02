@@ -158,6 +158,36 @@ body {
 .layer-switcher__item-name { font-size: 13px; font-weight: 500; color: var(--fg); }
 .layer-switcher__item-range { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); }
 
+/* -- Title-level layer switcher (inline with screen title) -- */
+.title-layer-switcher { position: relative; display: inline-flex; vertical-align: middle; margin-left: 10px; align-self: center; }
+.title-layer-switcher__trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 12px;
+  border: 1.5px solid var(--accent); background: var(--accent-soft);
+  font-size: 12.5px; color: var(--accent-ink); font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.title-layer-switcher__trigger:hover { background: var(--accent-tint); }
+.title-layer-switcher__menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 100;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-md); min-width: 220px; padding: 6px 0;
+}
+.title-layer-switcher__header {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--fg-muted); padding: 6px 14px 8px; border-bottom: 1px solid var(--border-soft);
+}
+.title-layer-switcher__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 8px 14px; border: none; background: none;
+  cursor: pointer; text-align: left; transition: background 0.1s;
+}
+.title-layer-switcher__item:hover { background: var(--bg-sunk); }
+.title-layer-switcher__item--active { background: var(--accent-soft); }
+.title-layer-switcher__item--active:hover { background: var(--accent-tint); }
+.title-layer-switcher__item-name { font-size: 13px; font-weight: 500; color: var(--fg); }
+.title-layer-switcher__item-range { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); }
+
 /* -- Option dropdown (Figma-style, visual only) -- */
 .option-dropdown { position: relative; }
 .option-dropdown__trigger {

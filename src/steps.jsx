@@ -10,43 +10,83 @@ function LayerBadge({ layer }) {
   );
 }
 
+// ---- Title-level layer switcher (dropdown next to screen title) ----
+function TitleLayerSwitcher({ layers, activeLayerIdx, onLayerChange }) {
+  const [open, setOpen] = useS(false);
+  const ref = useR(null);
+  const active = layers[activeLayerIdx] || layers[0];
+
+  useE(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <span className="title-layer-switcher" ref={ref}>
+      <button className="title-layer-switcher__trigger" onClick={() => setOpen(!open)}>
+        <i className="fa-solid fa-layer-group" style={{fontSize: 11}} />
+        {active.name}
+        <i className={`fa-solid fa-chevron-${open ? "up" : "down"}`} style={{fontSize: 10}} />
+      </button>
+      {open && (
+        <div className="title-layer-switcher__menu">
+          <div className="title-layer-switcher__header">Select Layer</div>
+          {layers.filter(l => l.participating).map((l) => {
+            const idx = layers.indexOf(l);
+            return (
+              <button key={l.id}
+                className={`title-layer-switcher__item${idx === activeLayerIdx ? " title-layer-switcher__item--active" : ""}`}
+                onClick={() => { onLayerChange(idx); setOpen(false); }}>
+                <span className="title-layer-switcher__item-name">{l.name}</span>
+                <span className="title-layer-switcher__item-range">{fmtShortRange(l.rangeFrom, l.rangeTo)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </span>
+  );
+}
+
 // ---- General Data screen (layer-scoped — parallel worlds) ----
-function GeneralDataScreen({ layer, allLayers }) {
+function GeneralDataScreen({ layer, allLayers, layers, activeLayerIdx, onLayerChange }) {
   return (
     <div>
-      <div className="main__title">General Data <LayerBadge layer={layer} /></div>
+      <div className="main__title"><span>General Data</span></div>
 
       <DisplayCardGrid cols={2}>
-        <DisplayCard title="HDI Responsibility">
-          <DisplayField label="Producing Office" value="Australia" />
-          <DisplayField label="Regional Office" value="Sydney" />
-          <DisplayField label="HDI Contact" value="John Smith" />
-          <DisplayField label="Lead Underwriter" value="Jane Doe" />
-        </DisplayCard>
-
-        <DisplayCard title="Contract / Offer Details">
-          <DisplayField label="Option Name" value="Option 1 — Base Coverage" />
-          <DisplayField label="Layer" value={layer.name} />
+        <DisplayCard title="Basic Information" onEdit={() => {}}>
+          <DisplayField label="Option Name" value="Variant 1" />
+          <DisplayField label="Underwriter in Charge" value={null} />
+          <DisplayField label="Assistant Underwriter" value={null} />
+          <DisplayField label="Producing Office" value="Italy" />
+          <DisplayField label="Regional Office" value="Milan" />
+          <DisplayField label="Currency" value="EUR" />
           <DisplayField label="Type of Business" value="New Business" />
-          <DisplayField label="Type of Contract" value="Annual" />
-          <DisplayField label="Inception Date" value="01 Jul 2026" mono />
-          <DisplayField label="Expiration Date" value="30 Jun 2027" mono />
-        </DisplayCard>
-      </DisplayCardGrid>
-
-      <DisplayCardGrid cols={2}>
-        <DisplayCard title="Layer Configuration">
-          <DisplayField label="Limit" value={fmtEUR(layer.limit)} mono />
-          <DisplayField label="Attachment Point" value={fmtEUR(layer.attachmentPoint)} mono />
-          <DisplayField label="Deductible" value={fmtEUR(layer.deductible)} mono />
-          <DisplayField label="Range" value={fmtShortRange(layer.rangeFrom, layer.rangeTo)} mono />
+          <DisplayField label="Type of Contract" value="Annual contract/automatic renewal" />
+          <DisplayField label="International Program" value="No" />
+          <DisplayField label="Inception Date" value="01/08/2026" mono />
+          <DisplayField label="Inception Time" value="00:00" mono />
+          <DisplayField label="Expiration Date" value="01/08/2027" mono />
         </DisplayCard>
 
-        <DisplayCard title="Participation" badge={layer.participating ? "Participating" : "Not participating"} badgeType={layer.participating ? "green" : "pending"}>
-          <DisplayField label="Participation" value={layer.participating ? "Participating" : "Non-participating"} />
-          <DisplayField label="Premium" value={layer.premium ? fmtEUR(layer.premium) : null} mono />
-          <DisplayField label="Rate" value={layer.rate} mono />
-          <DisplayField label="Layers in Program" value={String(allLayers.length)} />
+        <DisplayCard title="Partner Data" onEdit={() => {}}>
+          <DisplayField label="Partner No." value="8005720703" mono />
+          <DisplayField label="Partner Name" value="Lars Kleemann" />
+          <DisplayField label="Street" value="Phantasy Rd. 1" />
+          <DisplayField label="Zip" value="20143" mono />
+          <DisplayField label="City" value="MILANO" />
+          <DisplayField label="Country" value="Italy" />
+          <DisplayField label="Partner Headquarter" value="Italy" />
+          <DisplayField label="Risk Type" value="Coalition" />
+          <DisplayField label="Broker No." value="8000000642" mono />
+          <DisplayField label="Broker Name" value="jfgjgjppp" />
+          <DisplayField label="Street" value="Hoppersheider Busch 30a" />
+          <DisplayField label="Zip" value="51467" mono />
+          <DisplayField label="City" value="Bergisch Gladbach" />
+          <DisplayField label="Country" value="Anguilla" />
         </DisplayCard>
       </DisplayCardGrid>
     </div>
@@ -54,46 +94,130 @@ function GeneralDataScreen({ layer, allLayers }) {
 }
 
 // ---- Program Coverage screen (Cyber design) ----
-const CYBER_COVERAGES = [
-  { name: "Third Party Liability", selected: true, sublimit: "*", retroactive: "2 years" },
-  { name: "Privacy (& network security) liability", selected: true, sublimit: "*" },
-  { name: "Network security liability", selected: true },
-  { name: "Media liability", selected: true, sublimit: "*" },
-  { name: "Printed media liability extension", selected: false, sub: true },
-  { name: "Claims arising from the transfer of data", selected: false },
-  { name: "Regulatory proceedings", selected: false },
-  { name: "Internal investigations", selected: false },
-  { name: "Regulatory fines", selected: false },
-  { name: "Additional sublimit for defence costs", selected: false },
-  { name: "Data processing liability (e.g. cloud)", selected: false },
-  { name: "Payment card industry penalties", selected: false },
-  { name: "Fulfilment of Contract, Consequential Loss", selected: false },
-  { name: "Cyber directors & officers", selected: false },
-  { name: "Technology E&O", selected: false },
-  { name: "Own losses", selected: true },
-  { name: "Incident Response Costs", selected: true, sublimit: "*", waiting: "" },
-  { name: "Provisional and advisory services", selected: true, sublimit: "*", warning: true, waiting: "72 hours" },
-  { name: "Provisional and advisory services out of network-service", selected: false, sub: true },
-  { name: "Forensic Investigations", selected: true },
-  { name: "Notifications of the data protection authorities and affected parties, appointment of external service providers", selected: true },
-  { name: "Public relations in the event of a crisis or for reputation protection", selected: true, waiting: "6 months" },
-  { name: "Identity and credit monitoring services", selected: true, waiting: "12 months" },
-  { name: "Crisis consulting in the events of cyber extortion", selected: true },
+const CYBER_COVERAGE_TREE = [
+  { id: "tpl", name: "Third Party Liability", selected: true, sublimit: "*", retroactive: "2 years", children: [
+    { id: "tpl-pns", name: "Privacy (& network security) liability", selected: true, sublimit: "*", children: [
+      { id: "tpl-pns-nsl", name: "Network security liability", selected: true },
+    ]},
+    { id: "tpl-ml", name: "Media liability", selected: true, sublimit: "*", children: [
+      { id: "tpl-ml-pmle", name: "Printed media liability extension", selected: false },
+    ]},
+    { id: "tpl-catd", name: "Claims arising from the transfer of data", selected: false },
+    { id: "tpl-rp", name: "Regulatory proceedings", selected: false, children: [
+      { id: "tpl-rp-ii", name: "Internal investigations", selected: false },
+      { id: "tpl-rp-rf", name: "Regulatory fines", selected: false },
+    ]},
+    { id: "tpl-asdc", name: "Additional sublimit for defence costs", selected: false },
+    { id: "tpl-dpl", name: "Data processing liability (e.g. cloud)", selected: false },
+    { id: "tpl-pci", name: "Payment card industry penalties", selected: false },
+    { id: "tpl-fcl", name: "Fulfilment of Contract, Consequential Loss", selected: false },
+    { id: "tpl-cdo", name: "Cyber directors & officers", selected: false },
+    { id: "tpl-teo", name: "Technology E&O", selected: false },
+  ]},
+  { id: "ol", name: "Own losses", selected: true, children: [
+    { id: "ol-irc", name: "Incident Response Costs", selected: true, sublimit: "*" },
+    { id: "ol-pas", name: "Provisional and advisory services", selected: true, sublimit: "*", warning: true, waiting: "72 hours", children: [
+      { id: "ol-pas-oon", name: "Provisional and advisory services out of network-service", selected: false },
+    ]},
+    { id: "ol-fi", name: "Forensic Investigations", selected: true },
+    { id: "ol-ndp", name: "Notifications of the data protection authorities and affected parties", selected: true },
+    { id: "ol-pr", name: "Public relations in the event of a crisis or for reputation protection", selected: true, waiting: "6 months" },
+    { id: "ol-icm", name: "Identity and credit monitoring services", selected: true, waiting: "12 months" },
+    { id: "ol-cce", name: "Crisis consulting in the events of cyber extortion", selected: true },
+  ]},
+  { id: "bi", name: "Business Interruption", selected: true, children: [
+    { id: "bi-dsr", name: "Digital Data & Systems Recovery", selected: true, sublimit: "*" },
+    { id: "bi-bii", name: "Business income loss", selected: true },
+    { id: "bi-dep", name: "Dependent business interruption", selected: false },
+    { id: "bi-sca", name: "System failure cover (non-cyber event)", selected: false },
+    { id: "bi-rep", name: "Reputational harm", selected: false },
+  ]},
 ];
 
-function ProgramCoverageScreen({ layer, allLayers, onLayerChange, isLayered }) {
+function ProgramCoverageScreen({ layer, allLayers, layers, activeLayerIdx, onLayerChange, isLayered }) {
   const [filter, setFilter] = useS("");
   const [showAll, setShowAll] = useS(true);
+  const [collapsed, setCollapsed] = useS({});
+  const [tree, setTree] = useS(CYBER_COVERAGE_TREE);
+  const [panelCov, setPanelCov] = useS(null); // coverage being edited
+  const [draft, setDraft] = useS(null);
 
-  const filtered = CYBER_COVERAGES.filter(c => {
-    if (!showAll && !c.selected) return false;
-    if (filter && !c.name.toLowerCase().includes(filter.toLowerCase())) return false;
-    return true;
-  });
+  // Contract Limits state
+  const [limits, setLimits] = useS({ program: "Cyber Baseline", limitAgg: "", xs: "", deductible: "" });
+  const [limitsPanel, setLimitsPanel] = useS(false);
+  const [limitsDraft, setLimitsDraft] = useS(null);
+
+  // Sublimit Option state
+  const [sublimitOption, setSublimitOption] = useS("Step-Down");
+  const [sublimitPanel, setSublimitPanel] = useS(false);
+  const [sublimitDraft, setSublimitDraft] = useS(null);
+
+  const toggleCollapse = (id, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [id]: !c[id] })); };
+
+  const toggleSelected = (id) => {
+    const update = (items) => items.map(c => {
+      if (c.id === id) return { ...c, selected: !c.selected };
+      return c.children ? { ...c, children: update(c.children) } : c;
+    });
+    setTree(update);
+  };
+
+  const openPanel = (cov) => {
+    setPanelCov(cov);
+    setDraft({
+      sublimit: cov.sublimit || "",
+      sharedSublimit: cov.sharedSublimit || "",
+      deductible: cov.deductible || "",
+      retroactive: cov.retroactive || "",
+      indemnityPeriod: cov.indemnityPeriod || "",
+      waitingPeriod: cov.waiting || "",
+    });
+  };
+
+  const closePanel = () => { setPanelCov(null); setDraft(null); };
+
+  const savePanel = () => {
+    if (!panelCov || !draft) return;
+    const update = (items) => items.map(c => {
+      if (c.id === panelCov.id) return { ...c, sublimit: draft.sublimit, sharedSublimit: draft.sharedSublimit, deductible: draft.deductible, retroactive: draft.retroactive, indemnityPeriod: draft.indemnityPeriod, waiting: draft.waitingPeriod };
+      return c.children ? { ...c, children: update(c.children) } : c;
+    });
+    setTree(update);
+    closePanel();
+  };
+
+  // Flatten tree for rendering
+  const flattenTree = (items, depth) => {
+    const rows = [];
+    items.forEach(cov => {
+      const hasChildren = cov.children && cov.children.length > 0;
+      const matchesFilter = !filter || cov.name.toLowerCase().includes(filter.toLowerCase());
+      const descendantMatches = hasChildren && hasDescendant(cov, filter);
+      if (filter && !matchesFilter && !descendantMatches) return;
+      if (!showAll && !cov.selected) {
+        if (hasChildren && !collapsed[cov.id]) {
+          rows.push(...flattenTree(cov.children, depth));
+        }
+        return;
+      }
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.id] });
+      if (hasChildren && !collapsed[cov.id]) {
+        rows.push(...flattenTree(cov.children, depth + 1));
+      }
+    });
+    return rows;
+  };
+
+  function hasDescendant(cov, f) {
+    if (!f || !cov.children) return false;
+    return cov.children.some(c => c.name.toLowerCase().includes(f.toLowerCase()) || hasDescendant(c, f));
+  }
+
+  const treeRows = flattenTree(tree, 0);
 
   return (
     <div>
-      <div className="main__title">Program Coverage <LayerBadge layer={layer} /></div>
+      <div className="main__title"><span>Program Coverage</span> <TitleLayerSwitcher layers={layers || allLayers} activeLayerIdx={activeLayerIdx || 0} onLayerChange={onLayerChange || (() => {})} /></div>
 
       {/* Contract Limits and Deductibles */}
       <div className="pc-section">
@@ -111,23 +235,23 @@ function ProgramCoverageScreen({ layer, allLayers, onLayerChange, isLayered }) {
             </thead>
             <tbody>
               <tr>
-                <td className="t-strong">Cyber Baseline</td>
-                <td><span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span></td>
-                <td>–</td>
-                <td><span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span></td>
-                <td><button className="row-edit-btn"><i className="fa-solid fa-pencil" /></button></td>
+                <td className="t-strong">{limits.program}</td>
+                <td className="t-mono">{limits.limitAgg || <span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span>}</td>
+                <td className="t-mono">{limits.xs || "–"}</td>
+                <td className="t-mono">{limits.deductible || <span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span>}</td>
+                <td><button className="row-edit-btn" onClick={() => { setLimitsDraft({...limits}); setLimitsPanel(true); }}><i className="fa-solid fa-pencil" /></button></td>
               </tr>
             </tbody>
           </table>
           <div className="pc-side-card">
             <div className="pc-side-card__header">
               <span className="pc-side-card__title">Sublimit Option</span>
-              <button className="row-edit-btn"><i className="fa-solid fa-pencil" /></button>
+              <button className="row-edit-btn" onClick={() => { setSublimitDraft(sublimitOption); setSublimitPanel(true); }}><i className="fa-solid fa-pencil" /></button>
             </div>
             <div className="pc-side-card__body">
               <div className="pc-side-card__field">
                 <span className="pc-side-card__label">Sublimit Option</span>
-                <span className="pc-side-card__value">Step-Down</span>
+                <span className="pc-side-card__value">{sublimitOption}</span>
               </div>
             </div>
           </div>
@@ -159,48 +283,213 @@ function ProgramCoverageScreen({ layer, allLayers, onLayerChange, isLayered }) {
             <tr>
               <th style={{width: 36}}></th>
               <th style={{width: 36}}></th>
-              <th style={{width: "36%"}}>Coverage</th>
+              <th style={{width: "30%"}}>Coverage</th>
               <th>Sublimit (agg)</th>
               <th>Shared Sublimit (agg)</th>
               <th>Deductible (absolute)</th>
               <th>Retroactive Cover</th>
               <th>Indemnity Period</th>
               <th>Waiting Period</th>
-              <th style={{width: 120}}>Details</th>
+              <th style={{width: 80}}>Details</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c, i) => (
-              <tr key={i} className={c.sub ? "cov-row--sub" : (!c.selected ? "cov-row--unselected" : "")}>
-                <td>{c.selected && !c.sub ? <i className="fa-solid fa-chevron-up cov-chevron" /> : null}</td>
-                <td>
-                  {c.selected
-                    ? <span className="cov-check cov-check--on"><i className="fa-solid fa-check" /></span>
-                    : <span className="cov-check cov-check--off" />
-                  }
+            {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => (
+              <tr key={cov.id} className={!cov.selected ? "cov-row--unselected" : ""}>
+                <td style={{ paddingLeft: 8 + depth * 18 }}>
+                  {hasChildren ? (
+                    <button className="ct-chevron" onClick={e => toggleCollapse(cov.id, e)}>
+                      <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                    </button>
+                  ) : null}
                 </td>
-                <td className={c.selected ? "t-strong" : ""}>{c.name}</td>
-                <td className="t-muted">{c.sublimit || ""}</td>
-                <td className="t-muted"></td>
-                <td className="t-muted">{c.warning ? <span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span> : ""}</td>
-                <td className="t-muted">{c.retroactive || ""}</td>
-                <td className="t-muted"></td>
-                <td className="t-muted">{c.waiting || ""}</td>
-                <td>{c.selected ? <button className="row-edit-btn"><i className="fa-solid fa-pencil" /></button> : null}</td>
+                <td>
+                  <span
+                    className={`ct-check${cov.selected ? " ct-check--on" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => toggleSelected(cov.id)}
+                  >
+                    {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
+                  </span>
+                </td>
+                <td className={cov.selected ? "t-strong" : ""} style={{ paddingLeft: depth * 18 }}>{cov.name}</td>
+                <td className="t-muted">{cov.sublimit || ""}</td>
+                <td className="t-muted">{cov.sharedSublimit || ""}</td>
+                <td className="t-muted">{cov.deductible || ""}{cov.warning && !cov.deductible ? <span className="warning-dot"><i className="fa-solid fa-circle-exclamation" /></span> : ""}</td>
+                <td className="t-muted">{cov.retroactive || ""}</td>
+                <td className="t-muted">{cov.indemnityPeriod || ""}</td>
+                <td className="t-muted">{cov.waiting || ""}</td>
+                <td>{cov.selected ? <button className="row-edit-btn" onClick={() => openPanel(cov)}><i className="fa-solid fa-pencil" /></button> : null}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Edit panel */}
+      {panelCov && draft && (
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__cov">{panelCov.name}</span>
+                <span className="cst-panel__range">Configure coverage details</span>
+              </div>
+              <button className="drawer__close" onClick={closePanel}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="cst-panel__body">
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Sublimit (agg)</span>
+                <input className="cst-panel-input" placeholder="e.g. 1,000,000"
+                  value={draft.sublimit} onChange={e => setDraft(d => ({ ...d, sublimit: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Shared Sublimit (agg)</span>
+                <input className="cst-panel-input" placeholder="e.g. 500,000"
+                  value={draft.sharedSublimit} onChange={e => setDraft(d => ({ ...d, sharedSublimit: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Deductible (absolute)</span>
+                <input className="cst-panel-input" placeholder="e.g. 50,000"
+                  value={draft.deductible} onChange={e => setDraft(d => ({ ...d, deductible: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Retroactive Cover</span>
+                <select className="cst-panel-input"
+                  value={draft.retroactive} onChange={e => setDraft(d => ({ ...d, retroactive: e.target.value }))}>
+                  <option value="">— None —</option>
+                  <option value="1 year">1 year</option>
+                  <option value="2 years">2 years</option>
+                  <option value="3 years">3 years</option>
+                  <option value="5 years">5 years</option>
+                  <option value="Unlimited">Unlimited</option>
+                </select>
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Indemnity Period</span>
+                <input className="cst-panel-input" placeholder="e.g. 12 months"
+                  value={draft.indemnityPeriod} onChange={e => setDraft(d => ({ ...d, indemnityPeriod: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Waiting Period</span>
+                <input className="cst-panel-input" placeholder="e.g. 72 hours"
+                  value={draft.waitingPeriod} onChange={e => setDraft(d => ({ ...d, waitingPeriod: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={savePanel}>Save</button>
+              <button className="btn btn--outline" onClick={closePanel}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contract Limits panel */}
+      {limitsPanel && limitsDraft && (
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__cov">Contract Limits and Deductibles</span>
+                <span className="cst-panel__range">{limitsDraft.program}</span>
+              </div>
+              <button className="drawer__close" onClick={() => setLimitsPanel(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="cst-panel__body">
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Program Structure</span>
+                <input className="cst-panel-input" value={limitsDraft.program}
+                  onChange={e => setLimitsDraft(d => ({ ...d, program: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Limit (agg)</span>
+                <input className="cst-panel-input" placeholder="e.g. 10,000,000"
+                  value={limitsDraft.limitAgg}
+                  onChange={e => setLimitsDraft(d => ({ ...d, limitAgg: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">XS (agg)</span>
+                <input className="cst-panel-input" placeholder="e.g. 1,000,000"
+                  value={limitsDraft.xs}
+                  onChange={e => setLimitsDraft(d => ({ ...d, xs: e.target.value }))} />
+              </div>
+
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Deductible (eec)</span>
+                <input className="cst-panel-input" placeholder="e.g. 50,000"
+                  value={limitsDraft.deductible}
+                  onChange={e => setLimitsDraft(d => ({ ...d, deductible: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={() => { setLimits(limitsDraft); setLimitsPanel(false); }}>Save</button>
+              <button className="btn btn--outline" onClick={() => setLimitsPanel(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sublimit Option panel */}
+      {sublimitPanel && sublimitDraft !== null && (
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__cov">Sublimit Option</span>
+                <span className="cst-panel__range">Configure how sublimits are applied</span>
+              </div>
+              <button className="drawer__close" onClick={() => setSublimitPanel(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="cst-panel__body">
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Sublimit Option</span>
+                <select className="cst-panel-input" value={sublimitDraft}
+                  onChange={e => setSublimitDraft(e.target.value)}>
+                  <option value="Step-Down">Step-Down</option>
+                  <option value="Drop-Down">Drop-Down</option>
+                </select>
+              </div>
+
+              <p style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 8, lineHeight: 1.5 }}>
+                {sublimitDraft === "Step-Down" && "Sublimits reduce the overall aggregate limit. Each claim against a sublimit also reduces the main limit."}
+                {sublimitDraft === "Drop-Down" && "After the sublimit is exhausted, the remaining loss drops down to the main policy limit."}
+              </p>
+            </div>
+
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={() => { setSublimitOption(sublimitDraft); setSublimitPanel(false); }}>Save</button>
+              <button className="btn btn--outline" onClick={() => setSublimitPanel(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ---- Risk Profile screen ----
-function RiskProfileScreen({ layer, allLayers, onLayerChange, isLayered }) {
+function RiskProfileScreen({ layer, allLayers, layers, activeLayerIdx, onLayerChange, isLayered }) {
   return (
     <div>
-      <div className="main__title">Risk Profile <LayerBadge layer={layer} /></div>
+      <div className="main__title"><span>Risk Profile</span> <TitleLayerSwitcher layers={layers || allLayers} activeLayerIdx={activeLayerIdx || 0} onLayerChange={onLayerChange || (() => {})} /></div>
 
       <DisplayCardGrid cols={2}>
         <DisplayCard title="Risk Assessment" badge="Pending" badgeType="pending">
@@ -222,10 +511,10 @@ function RiskProfileScreen({ layer, allLayers, onLayerChange, isLayered }) {
 }
 
 // ---- Technical Premium screen ----
-function TechnicalPremiumScreen({ layer, allLayers, onLayerChange, isLayered }) {
+function TechnicalPremiumScreen({ layer, allLayers, layers, activeLayerIdx, onLayerChange, isLayered }) {
   return (
     <div>
-      <div className="main__title">Technical Premium <LayerBadge layer={layer} /></div>
+      <div className="main__title"><span>Technical Premium</span> <TitleLayerSwitcher layers={layers || allLayers} activeLayerIdx={activeLayerIdx || 0} onLayerChange={onLayerChange || (() => {})} /></div>
 
       <div className="summary-strip">
         <div className="summary-card">
@@ -409,25 +698,16 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
 }
 
 // ---- Layers Workflow screen (Variant B — after Program Coverage) ----
-function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit, layerMode, onLayerModeChange }) {
+function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit }) {
   const [filterParticipating, setFilterParticipating] = useS(false);
-  const [showModePanel, setShowModePanel] = useS(false);
   const displayLayers = filterParticipating ? layers.filter(l => l.participating) : layers;
 
   return (
     <div>
-      <div className="main__title">Layers</div>
+      <div className="main__title"><span>Layers</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
       <p className="main__subtitle" style={{marginTop: -12, marginBottom: 24}}>
         Define the layer structure for this option. Each layer inherits the coverages selected in Program Coverage.
       </p>
-
-      {/* Layer Mode Card */}
-      <div style={{ marginBottom: 28 }}>
-        <DisplayCard title="Layer Mode" onEdit={() => setShowModePanel(true)} badge={layerMode === "follow-form" ? "Follow Form" : "DIC"} badgeType={layerMode === "follow-form" ? "gray" : "green"}>
-          <DisplayField label="Mode" value={layerMode === "follow-form" ? "Follow Form" : "DIC (Difference in Conditions)"} />
-          <DisplayField label="Description" value={layerMode === "follow-form" ? "All layers share the same conditions and coverages as the Primary Layer." : "Coverages can be configured individually per layer."} />
-        </DisplayCard>
-      </div>
 
       {/* Layer Management Table */}
       <div className="ls-section">
@@ -446,15 +726,14 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
         <table className="grid-tbl">
           <thead>
             <tr>
-              <th style={{width: "16%"}}>Layer Name</th>
+              <th style={{width: "18%"}}>Layer Name</th>
               <th style={{width: "9%"}}>Type</th>
-              <th style={{width: "12%"}}>Product</th>
-              <th style={{width: "12%"}}>Range</th>
-              <th style={{width: "11%"}}>Limit</th>
-              <th style={{width: "12%"}}>Attachment Point</th>
-              <th style={{width: "10%"}}>Deductible</th>
-              <th style={{width: "10%"}}>Participation</th>
-              <th style={{width: "8%"}}>Actions</th>
+              <th style={{width: "14%"}}>Range</th>
+              <th style={{width: "12%"}}>Limit</th>
+              <th style={{width: "14%"}}>Attachment Point</th>
+              <th style={{width: "11%"}}>Deductible</th>
+              <th style={{width: "12%"}}>Participation</th>
+              <th style={{width: "10%"}}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -464,7 +743,6 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
               <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
                 <td className="t-strong">{layer.name}</td>
                 <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
-                <td>{layer.product || "—"}</td>
                 <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
                 <td className="t-mono">{fmtEUR(layer.limit)}</td>
                 <td className="t-mono">{fmtEUR(layer.attachmentPoint)}</td>
@@ -515,44 +793,6 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
           <span className="ls-cov-chip">Incident Response Costs</span>
         </div>
       </div>
-
-      {/* Layer Mode slide panel */}
-      {showModePanel && (
-        <div className="cst-panel-overlay">
-          <div className="cst-panel">
-            <div className="cst-panel__header">
-              <span className="cst-panel__title">Layer Mode</span>
-              <button className="cst-panel__close" onClick={() => setShowModePanel(false)}>
-                <i className="fa-solid fa-xmark" />
-              </button>
-            </div>
-            <div className="cst-panel__body" style={{ padding: "20px 24px" }}>
-              <p style={{ fontSize: 13, color: "var(--fg-muted)", marginBottom: 20, lineHeight: 1.5 }}>
-                Choose how coverages are handled across layers. This affects whether the Coverage Spreading screen is available.
-              </p>
-              <div className="ls-mode-options ls-mode-options--vertical">
-                <label className={`ls-mode-option${layerMode === "follow-form" ? " ls-mode-option--active" : ""}`}>
-                  <input type="radio" name="layerMode" value="follow-form" checked={layerMode === "follow-form"} onChange={() => onLayerModeChange("follow-form")} />
-                  <div className="ls-mode-option__content">
-                    <span className="ls-mode-option__title">Follow Form</span>
-                    <span className="ls-mode-option__desc">All layers share the same conditions and coverages as the Primary Layer. No per-layer configuration needed.</span>
-                  </div>
-                </label>
-                <label className={`ls-mode-option${layerMode === "dic" ? " ls-mode-option--active" : ""}`}>
-                  <input type="radio" name="layerMode" value="dic" checked={layerMode === "dic"} onChange={() => onLayerModeChange("dic")} />
-                  <div className="ls-mode-option__content">
-                    <span className="ls-mode-option__title">DIC (Difference in Conditions)</span>
-                    <span className="ls-mode-option__desc">Coverages can be excluded or configured individually per layer via the Coverage Spreading screen.</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-            <div className="cst-panel__footer">
-              <button className="btn btn--primary" onClick={() => setShowModePanel(false)}>Done</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -762,7 +1002,7 @@ function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
 
   return (
     <div>
-      <div className="main__title">Premium Result <LayerBadge layer={activeLayer} /></div>
+      <div className="main__title"><span>Premium Result</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
 
       <div className="calc-table-wrap">
         <table className="grid-tbl grid-tbl--calc">
@@ -847,7 +1087,7 @@ function LoadingDiscountsScreen({ layers, activeLayerIdx, onLayerChange }) {
 
   return (
     <div>
-      <div className="main__title">Loading / Discounts <LayerBadge layer={activeLayer} /></div>
+      <div className="main__title"><span>Loading / Discounts</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
 
       <h2 className="calc-section-title">Tariff</h2>
       <div className="calc-table-wrap">
@@ -908,7 +1148,7 @@ function PremiumRatesScreen({ layers, activeLayerIdx, onLayerChange }) {
 
   return (
     <div>
-      <div className="main__title">Premium Rates <LayerBadge layer={activeLayer} /></div>
+      <div className="main__title"><span>Premium Rates</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
 
       <h2 className="calc-section-title">Please Select Rate / Flat Premium Option for Your Offer</h2>
       <div className="calc-table-wrap">
@@ -3756,23 +3996,13 @@ function useFdState() {
 
 function FinalDecisionScreen({ layers }) {
   const { getDecision, setDecisionField, finalise, setBindDate, reset } = useFdState();
-  const [collapsed, setCollapsed] = useS({});
   const [, forceRender] = useS(0);
-  const [panelLi, setPanelLi] = useS(null);   // layerIdx of open panel, null = closed
-  const [draft, setDraft] = useS(null);         // editable copy of decision while panel open
+  const [panelLi, setPanelLi] = useS(null);
+  const [draft, setDraft] = useS(null);
 
   useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
 
-  // Group layers by product — only participating layers are listed on this
-  // screen; a non-participating layer was never actually offered, so there's
-  // no decision to make on it.
-  const groups = layers.reduce((acc, layer, li) => {
-    if (!layer.participating) return acc;
-    const prod = layer.product || "Unknown";
-    if (!acc[prod]) acc[prod] = [];
-    acc[prod].push({ layer, li });
-    return acc;
-  }, {});
+  const participatingLayers = layers.filter(l => l.participating);
 
   const allHaveDecision = layers.every((layer, li) => {
     if (!layer.participating) return true;
@@ -3782,36 +4012,10 @@ function FinalDecisionScreen({ layers }) {
 
   const isFinalized = _fdFinalized;
 
-  // Aggregate status for a group
-  const groupStatus = (items) => {
-    const decisions = items.map(({ li }) => getDecision(li)?.decision || "offered");
-    if (decisions.every(d => d === "offered"))   return "Pending";
-    if (decisions.every(d => d === "accepted"))  return "All Accepted";
-    if (decisions.every(d => d === "declined"))  return "All Declined";
-    return "Mixed";
-  };
-
-  const statusClass = (status) => {
-    if (status === "All Accepted") return "fd-status--accepted";
-    if (status === "All Declined") return "fd-status--declined";
-    if (status === "Mixed")        return "fd-status--mixed";
-    return "fd-status--pending";
-  };
-
-  const groupOfferedPremium = (items) =>
-    items.reduce((s, { layer }) => s + (layer.premium || 0), 0);
-
-  // Only accepted layers have an achieved premium (matches the per-row column logic)
-  const groupAchievedPremium = (items) =>
-    items.reduce((s, { li }) => {
-      const d = getDecision(li);
-      return s + (d?.decision === "accepted" && d.achievedPremium ? Number(d.achievedPremium) : 0);
-    }, 0);
-
-  // Total achieved premium across all groups — drives the top-right stat once finalised
-  const totalAchievedPremium = Object.values(groups).reduce(
-    (s, items) => s + groupAchievedPremium(items), 0
-  );
+  const totalAchievedPremium = layers.reduce((s, _, li) => {
+    const d = getDecision(li);
+    return s + (d?.decision === "accepted" && d.achievedPremium ? Number(d.achievedPremium) : 0);
+  }, 0);
 
   const openPanel = (li) => {
     setDraft({ ...(getDecision(li) || {}) });
@@ -3853,151 +4057,71 @@ function FinalDecisionScreen({ layers }) {
           Please select decision for submitted offer
         </p>
 
-        {/* Bind Date — shared across all layers */}
-        <div className="fd-bind-row">
-          <span>Bind Date:</span>
-          <input
-            type="date"
-            className="fd-bind-input"
-            value={_fdBindDate}
-            onChange={e => setBindDate(e.target.value)}
-            disabled={isFinalized}
-          />
-        </div>
+        {/* All layers in one table */}
+        <table className="grid-tbl">
+          <thead>
+            <tr>
+              <th style={{ width: "14%" }}>Program Structure</th>
+              <th>Decision</th>
+              <th>Offered Premium</th>
+              <th>Type of Participation</th>
+              <th>Final HDI Share in %</th>
+              <th>Lead Insurer</th>
+              <th>Achieved Premium</th>
+              <th>Achieved HDI Premium</th>
+              <th>Bind Date</th>
+              <th>Policy</th>
+              {!isFinalized && <th style={{ width: 40 }}></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {layers.map((layer, li) => {
+              if (!layer.participating) return null;
+              const d = getDecision(li) || {};
+              const achievedHdi = d.achievedPremium && d.hdiSharePct
+                ? Math.round(Number(d.achievedPremium) * Number(d.hdiSharePct) / 100)
+                : null;
+              const isAccepted = d.decision === "accepted";
+              const isDeclined = d.decision === "declined";
+              const isActive = panelLi === li;
 
-        {/* Layer groups */}
-        {Object.entries(groups).map(([product, items]) => {
-          const status = groupStatus(items);
-          const offeredPremium = groupOfferedPremium(items);
-          const achievedPremium = groupAchievedPremium(items);
-          const isCollapsed = !!collapsed[product];
-
-          return (
-            <div key={product} className="fd-group">
-              {/* Group header */}
-              <div className="fd-group-header" onClick={() => setCollapsed(c => ({ ...c, [product]: !c[product] }))}>
-                <span className="fd-group-header__product">{product}</span>
-                <span className={`fd-group-header__status ${statusClass(status)}`}>{status}</span>
-                <span className="fd-group-header__premiums">
-                  <span className="fd-group-header__premium-item">
-                    <span className="fd-group-header__premium-label">Offered</span>
-                    {offeredPremium ? fmtEUR(offeredPremium) : "—"}
-                  </span>
-                  <span className="fd-group-header__premium-item">
-                    <span className="fd-group-header__premium-label">Achieved</span>
-                    {achievedPremium ? fmtEUR(achievedPremium) : "—"}
-                  </span>
-                </span>
-                <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"} fd-group-header__chevron`} />
-              </div>
-
-              {/* Layer rows — read-only display */}
-              {!isCollapsed && (
-                <table className="fd-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: "15%" }}>Program Structure</th>
-                      <th>Decision</th>
-                      <th>Offered Premium</th>
-                      <th>Type of Participation</th>
-                      <th>Final HDI Share in %</th>
-                      <th>Lead Insurer</th>
-                      <th>Achieved Premium</th>
-                      <th>Achieved HDI Premium</th>
-                      <th>Policy</th>
-                      {!isFinalized && <th></th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map(({ layer, li }) => {
-                      const d = getDecision(li) || {};
-                      const achievedHdi = d.achievedPremium && d.hdiSharePct
-                        ? Math.round(Number(d.achievedPremium) * Number(d.hdiSharePct) / 100)
-                        : null;
-                      const isAccepted = d.decision === "accepted";
-                      const isDeclined = d.decision === "declined";
-                      const isActive = panelLi === li;
-
-                      return (
-                        <tr key={li} style={{ background: isActive ? "var(--bg-sunk)" : undefined }}>
-                          {/* Program Structure */}
-                          <td style={{ whiteSpace: "nowrap" }}>
-                              <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px" }}>
-                                {layer.type}
-                              </span>
-                          </td>
-
-                          {/* Decision — read-only badge */}
-                          <td>
-                            <span className={`fd-group-header__status ${isAccepted ? "fd-status--accepted" : isDeclined ? "fd-status--declined" : "fd-status--pending"}`} style={{ padding: "2px 8px", borderRadius: 10 }}>
-                              {decisionLabel(d.decision)}
-                            </span>
-                          </td>
-
-                          {/* Offered Premium */}
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                            {layer.premium ? fmtEUR(layer.premium) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Type of Participation */}
-                          <td style={{ fontSize: 12, color: d.typeOfParticipation ? "var(--fg)" : "var(--fg-faint)" }}>
-                            {d.typeOfParticipation || "—"}
-                          </td>
-
-                          {/* HDI Share % */}
-                          <td style={{ fontSize: 12 }}>
-                            {d.hdiSharePct ? `${d.hdiSharePct}%` : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Lead Insurer — only meaningful for co-insurance */}
-                          <td style={{ fontSize: 12 }}>
-                            {d.typeOfParticipation === "Co-insurance"
-                              ? (d.leadInsurer
-                                  ? <span style={{ color: "var(--accent)" }}>✓ Yes</span>
-                                  : <span style={{ color: "var(--fg-faint)" }}>No</span>)
-                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Achieved Premium */}
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                            {isAccepted && d.achievedPremium
-                              ? fmtEUR(Number(d.achievedPremium))
-                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Achieved HDI Premium — auto-computed */}
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                            {achievedHdi != null ? fmtEUR(achievedHdi) : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Policy */}
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                            {d.policyId
-                              ? <span style={{ color: "var(--accent)", fontWeight: 600 }}>{d.policyId}</span>
-                              : <span style={{ color: "var(--fg-faint)" }}>—</span>}
-                          </td>
-
-                          {/* Edit button */}
-                          {!isFinalized && (
-                            <td style={{ width: 32, textAlign: "center" }}>
-                              <button
-                                onClick={() => isActive ? closePanel() : openPanel(li)}
-                                style={{ background: "none", border: "none", cursor: "pointer", color: isActive ? "var(--accent)" : "var(--fg-muted)", fontSize: 13, padding: "2px 4px" }}
-                                title="Edit layer decision"
-                              >
-                                <i className="fa-solid fa-pen" />
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          );
-        })}
+              return (
+                <tr key={li} style={{ background: isActive ? "var(--bg-sunk)" : undefined }}>
+                  <td className="t-strong" style={{ whiteSpace: "nowrap" }}>
+                    <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`} style={{ fontSize: 10, padding: "2px 6px", marginRight: 6 }}>
+                      {layer.type}
+                    </span>
+                    {layer.name}
+                  </td>
+                  <td>
+                    <span className={`fd-group-header__status ${isAccepted ? "fd-status--accepted" : isDeclined ? "fd-status--declined" : "fd-status--pending"}`} style={{ padding: "2px 8px", borderRadius: 10 }}>
+                      {decisionLabel(d.decision)}
+                    </span>
+                  </td>
+                  <td className="t-mono">{layer.premium ? fmtEUR(layer.premium) : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td style={{ fontSize: 12 }}>{d.typeOfParticipation || <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td style={{ fontSize: 12 }}>{d.hdiSharePct ? `${d.hdiSharePct}%` : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td style={{ fontSize: 12 }}>
+                    {d.typeOfParticipation === "Co-insurance"
+                      ? (d.leadInsurer ? <span style={{ color: "var(--accent)" }}>✓ Yes</span> : <span style={{ color: "var(--fg-faint)" }}>No</span>)
+                      : <span style={{ color: "var(--fg-faint)" }}>—</span>}
+                  </td>
+                  <td className="t-mono">{isAccepted && d.achievedPremium ? fmtEUR(Number(d.achievedPremium)) : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td className="t-mono">{achievedHdi != null ? fmtEUR(achievedHdi) : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td className="t-mono">{d.bindDate ? d.bindDate.split("-").reverse().join(".") : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  <td className="t-mono">{d.policyId ? <span style={{ color: "var(--accent)", fontWeight: 600 }}>{d.policyId}</span> : <span style={{ color: "var(--fg-faint)" }}>—</span>}</td>
+                  {!isFinalized && (
+                    <td style={{ textAlign: "center" }}>
+                      <button className="row-edit-btn" onClick={() => isActive ? closePanel() : openPanel(li)} title="Edit layer decision">
+                        <i className="fa-solid fa-pencil" />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
         {/* Finalise button / result */}
         {!isFinalized ? (
@@ -4163,6 +4287,17 @@ function FinalDecisionScreen({ layers }) {
                   )}
                 </div>
               )}
+
+              {/* Bind Date — per layer */}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Bind Date</span>
+                <input
+                  type="date"
+                  className="cst-panel-input"
+                  value={draft.bindDate || ""}
+                  onChange={e => setDraft(d => ({ ...d, bindDate: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="cst-panel__footer">

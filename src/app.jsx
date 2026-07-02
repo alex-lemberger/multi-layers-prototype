@@ -154,7 +154,7 @@ const NAV_ITEMS_A = [
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
-  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "", hidden: true },
+  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
     { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
@@ -166,10 +166,10 @@ const NAV_ITEMS_A = [
 // Variant B: Layers as workflow step (after Program Coverage, before Premium)
 const NAV_ITEMS_B = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
-  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done", hidden: true },
+  { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
-    { id: "layer-overview",       label: "Layer Overview",      icon: "fa-solid fa-table-cells" },
+    { id: "layer-overview",       label: "Layer Overview",      icon: "fa-solid fa-table-cells", hidden: true },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
   ]},
@@ -234,18 +234,10 @@ function AddLayerDrawer({ open, onClose, onAdd, nextIndex }) {
                 <option value="Excess">Excess</option>
               </select>
             </div>
-            <div style={{gridColumn: "1 / -1"}}>
-              <div className="dfield__label" style={{marginBottom: 6}}>Product</div>
-              <select className="form-input form-select"
-                value={product} onChange={e => setProduct(e.target.value)}>
-                <option value="Cyber Baseline">Cyber Baseline</option>
-                <option value="Cyber Plus">Cyber Plus</option>
-              </select>
-            </div>
           </div>
         </div>
         <div className="drawer__footer">
-          <button className="btn btn--primary" onClick={() => { onAdd({ name, type: layerType, product }); onClose(); }}>
+          <button className="btn btn--primary" onClick={() => { onAdd({ name, type: layerType }); onClose(); }}>
             Create Layer
           </button>
           <button className="btn btn--outline" onClick={onClose}>Cancel</button>
@@ -367,13 +359,6 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
                 <option value="Excess">Excess</option>
               </select>
             </div>
-            <div style={{gridColumn: "1 / -1"}}>
-              <div className="dfield__label" style={{marginBottom: 6}}>Product</div>
-              <select className="form-input form-select" value={product} onChange={e => setProduct(e.target.value)}>
-                <option value="Cyber Baseline">Cyber Baseline</option>
-                <option value="Cyber Plus">Cyber Plus</option>
-              </select>
-            </div>
             <div>
               <div className="dfield__label" style={{marginBottom: 6}}>Limit</div>
               <input className="form-input" type="number" value={limit} onChange={e => setLimit(e.target.value)} />
@@ -416,7 +401,6 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
             onSave(layerIdx, {
               name,
               type: layerType,
-              product,
               limit: Number(limit) || 0,
               attachmentPoint: Number(attachmentPoint) || 0,
               deductible: Number(deductible) || 0,
@@ -450,7 +434,6 @@ function App() {
     });
   });
   const [activeLayerIdx, setActiveLayerIdx] = useState_app(0);
-  const [layerMode, setLayerMode] = useState_app(() => loadFromLS("ml_layer_mode_v1", "dic")); // "follow-form" | "dic"
   const [activeNav, setActiveNav] = useState_app(() => {
     const hash = window.location.hash.replace("#", "");
     const allNavIds = [...NAV_ITEMS_A, ...NAV_ITEMS_B].flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
@@ -475,7 +458,6 @@ function App() {
   // Persist layers to localStorage
   useEffect_app(() => { saveToLS(LS_KEY_LAYERS, layers); }, [layers]);
   useEffect_app(() => { saveToLS("ml_variant", variant); }, [variant]);
-  useEffect_app(() => { saveToLS("ml_layer_mode_v1", layerMode); }, [layerMode]);
 
   // Sync hash with active nav
   useEffect_app(() => { window.location.hash = activeNav; }, [activeNav]);
@@ -542,9 +524,9 @@ function App() {
   // ---- Render screen ----
   function renderScreen() {
     switch (activeNav) {
-      case "general-data":       return <GeneralDataScreen layer={activeLayer} allLayers={layers} />;
+      case "general-data":       return <GeneralDataScreen layer={activeLayer} allLayers={layers} layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
-      case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} layerMode={layerMode} onLayerModeChange={setLayerMode} />;
+      case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layer-overview":     return <LayerOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
@@ -554,7 +536,7 @@ function App() {
       case "prop-define":        return <PropDefineCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "liability-coverage": return <LiabilityCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
-      case "program-coverage":   return <ProgramCoverageScreen layer={activeLayer} allLayers={layers} />;
+      case "program-coverage":   return <ProgramCoverageScreen layer={activeLayer} allLayers={layers} layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "premium-result":     return <PremiumResultScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "loading-discounts":  return <LoadingDiscountsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "premium-rates":      return <PremiumRatesScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
@@ -627,7 +609,7 @@ function App() {
                     (item.id === activeNav && !item.children ? " nav-item--active" : "") +
                     (item.children && item.children.some(c => c.id === activeNav) ? " nav-item--parent-active" : "")
                   }
-                  onClick={() => setActiveNav(item.children ? item.children[0].id : item.id)}>
+                  onClick={() => setActiveNav(item.children ? (item.children.find(c => !c.hidden) || item.children[0]).id : item.id)}>
                   <span className={"nav-item__dot" +
                     (item.status === "done" ? " nav-item__dot--done" : "")} />
                   <i className={item.icon + " nav-item__icon"} />
@@ -636,10 +618,7 @@ function App() {
                 {/* Sub-navigation items (visible when layers exist) */}
                 {item.children && layers.length > 1 && (
                   <div className="nav-children">
-                    {item.children.filter(child => {
-                      if (layerMode === "follow-form" && ["coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "layered-coverage"].includes(child.id)) return false;
-                      return true;
-                    }).map(child => (
+                    {item.children.filter(child => !child.hidden).map(child => (
                       <div key={child.id}
                         className={"nav-item nav-item--child" +
                           (child.id === activeNav ? " nav-item--active" : "")
@@ -676,7 +655,7 @@ function App() {
             <h1 className="partner-banner__title">Suppella Partner International GmbH</h1>
             <div className="partner-banner__chips">
               <OptionDropdown />
-              {!["general-data", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision", "layer-overview"].includes(activeNav) && (
+              {!["general-data", "program-coverage", "layers", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision", "layer-overview", "premium-result", "loading-discounts", "premium-rates"].includes(activeNav) && (
                 <>
                   <span className="pb-divider" />
                   <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
