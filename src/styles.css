@@ -1497,6 +1497,16 @@ body {
 }
 .cst-tree-row--selected:hover { background: var(--accent-tint); }
 
+.cst-tree-row--locked {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: default;
+}
+.cst-tree-row--locked .ct-chevron {
+  pointer-events: auto;
+  opacity: 1;
+}
+
 .cst-tree-row__label {
   flex: 1;
   font-size: 13px;

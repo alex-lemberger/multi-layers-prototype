@@ -2035,15 +2035,24 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
   }
 
   const toggleCovSelected = (kindId) => {
-    const toggle = (items) => items.map(c =>
-      c.coverageKindId === kindId ? { ...c, selected: !c.selected }
-      : c.children ? { ...c, children: toggle(c.children) }
-      : c
-    );
+    const deselectAll = (items) => items.map(c => ({
+      ...c, selected: false,
+      ...(c.children ? { children: deselectAll(c.children) } : {})
+    }));
+    const toggle = (items) => items.map(c => {
+      if (c.coverageKindId === kindId) {
+        const newSelected = !c.selected;
+        if (!newSelected && c.children) {
+          return { ...c, selected: false, children: deselectAll(c.children) };
+        }
+        return { ...c, selected: newSelected };
+      }
+      return c.children ? { ...c, children: toggle(c.children) } : c;
+    });
     setCoverageTree(prev => toggle(prev));
   };
 
-  const flattenTree = (items, depth) => {
+  const flattenTree = (items, depth, parentDeselected) => {
     const rows = [];
     items.forEach(cov => {
       const hasChildren = cov.children && cov.children.length > 0;
@@ -2054,13 +2063,14 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       if (showOnlyActive && !cov.selected) {
         // Still recurse into children — some descendants may be selected
         if (hasChildren && !collapsed[cov.coverageKindId]) {
-          rows.push(...flattenTree(cov.children, depth));
+          rows.push(...flattenTree(cov.children, depth, true));
         }
         return;
       }
-      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId] });
+      const locked = !!parentDeselected;
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId], locked });
       if (hasChildren && !collapsed[cov.coverageKindId]) {
-        rows.push(...flattenTree(cov.children, depth + 1));
+        rows.push(...flattenTree(cov.children, depth + 1, locked || !cov.selected));
       }
     });
     return rows;
@@ -2123,7 +2133,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
     setPanelTarget(null);
   };
 
-  const treeRows = coverageTree ? flattenTree(coverageTree, 0) : [];
+  const treeRows = coverageTree ? flattenTree(coverageTree, 0, false) : [];
 
   const totalRange = layers.reduce((s, l) => s + Math.max(0, (l.rangeTo || 0) - (l.rangeFrom || 0)), 0);
   const MIN_HEIGHT_PX = 60;
@@ -2164,15 +2174,15 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             </label>
           </div>
           <div className="cst-tree-scroll">
-            {treeRows.map(({ cov, depth, hasChildren, isCollapsed }) => {
+            {treeRows.map(({ cov, depth, hasChildren, isCollapsed, locked }) => {
               const included = countIncluded(cov.coverageKindId);
               const isSelected = cov.coverageKindId === selectedKindId;
               return (
                 <div
                   key={cov.coverageKindId}
-                  className={`cst-tree-row${cov.selected ? " cst-tree-row--checked" : ""}${isSelected ? " cst-tree-row--selected" : ""}`}
+                  className={`cst-tree-row${cov.selected ? " cst-tree-row--checked" : ""}${isSelected ? " cst-tree-row--selected" : ""}${locked ? " cst-tree-row--locked" : ""}`}
                   style={{ paddingLeft: 12 + depth * 22 }}
-                  onClick={() => selectCov(cov)}
+                  onClick={() => !locked && selectCov(cov)}
                 >
                   {hasChildren ? (
                     <button className="ct-chevron" style={{ flexShrink: 0 }} onClick={e => toggle(cov.coverageKindId, e)}>
@@ -2183,13 +2193,13 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                   )}
                   <span
                     className={`ct-check${cov.selected ? " ct-check--on" : ""}`}
-                    style={{ flexShrink: 0, cursor: "pointer" }}
-                    onClick={e => { e.stopPropagation(); toggleCovSelected(cov.coverageKindId); }}
+                    style={{ flexShrink: 0, cursor: locked ? "not-allowed" : "pointer" }}
+                    onClick={e => { e.stopPropagation(); if (!locked) toggleCovSelected(cov.coverageKindId); }}
                   >
                     {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
                   </span>
                   <span className="cst-tree-row__label">{cov.coverageName}</span>
-                  {included > 0 && (
+                  {included > 0 && !locked && (
                     <span className={`cst-layer-count ${included === layers.length ? "cst-layer-count--full" : "cst-layer-count--partial"}`}>
                       {included}/{layers.length}
                     </span>
