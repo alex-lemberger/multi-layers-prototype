@@ -443,7 +443,17 @@ function EditLayerDrawer({ open, onClose, onSave, layer, layerIdx }) {
 // ---- Main App ----
 function App() {
   const [variant, setVariant] = useState_app("B"); // A code kept but hidden for demo
-  const [layers, setLayers] = useState_app(() => loadFromLS(LS_KEY_LAYERS, makeInitialLayers()));
+  const [layers, setLayers] = useState_app(() => {
+    const loaded = loadFromLS(LS_KEY_LAYERS, makeInitialLayers());
+    // Deduplicate IDs for data persisted before monotonic counter fix
+    const seen = new Set();
+    let nextId = loaded.reduce((max, l) => Math.max(max, l.id ?? -1), -1) + 1;
+    return loaded.map(l => {
+      if (l.id == null || seen.has(l.id)) return { ...l, id: nextId++ };
+      seen.add(l.id);
+      return l;
+    });
+  });
   const [activeLayerIdx, setActiveLayerIdx] = useState_app(0);
   const [activeNav, setActiveNav] = useState_app(() => {
     const hash = window.location.hash.replace("#", "");
@@ -485,11 +495,12 @@ function App() {
 
   const activeLayer = layers[activeLayerIdx] || layers[0];
   const nextLayerIndex = layers.length;
+  const nextIdRef = React.useRef(layers.reduce((max, l) => Math.max(max, l.id), -1) + 1);
 
   // ---- Layer CRUD ----
   const addLayer = useCallback_app((spec) => {
     const newLayer = {
-      id: layers.length,
+      id: nextIdRef.current++,
       name: spec.name,
       type: spec.type,
       product: spec.product || "Cyber Baseline",
@@ -514,7 +525,7 @@ function App() {
   }, [layers, activeLayerIdx]);
 
   const copyLayer = useCallback_app((newLayer) => {
-    const copied = { ...newLayer, id: layers.length, premium: null, rate: null, participating: false,
+    const copied = { ...newLayer, id: nextIdRef.current++, premium: null, rate: null, participating: false,
       coverages: (newLayer.coverages || []).map(c => ({...c})) };
     setLayers(prev => [...prev, copied]);
     setActiveLayerIdx(layers.length);
