@@ -2667,105 +2667,126 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
               {/* Tower */}
               <div className="cst-tower-scroll">
               <div className="cst-tower" style={{ minHeight: TOWER_HEIGHT_PX }}>
-                {layers.filter(l => {
-                  if (layerFilter && !l.name.toLowerCase().includes(layerFilter.toLowerCase())) return false;
-                  if (hideNonParticipating && !l.participating) return false;
-                  if (hideNonAssigned && selectedCov) {
-                    const li = layers.indexOf(l);
-                    const a = getAssignment(selectedCov.coverageKindId, li);
-                    if (a?.excluded) return false;
-                    if (li > 0 && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current)) return false;
-                  }
-                  return true;
-                }).map((layer, _fi) => {
-                  const li = layers.indexOf(layer);
-                  const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
-                  const isPrimary = li === 0;
-                  const isExcluded = !isPrimary && assignment.excluded === true;
-                  const isLocked = !isPrimary && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current);
-                  const rangeSize = Math.max(0, (layer.rangeTo || 0) - (layer.rangeFrom || 0));
-                  const heightFraction = totalRange > 0 ? rangeSize / totalRange : 1 / layers.length;
-                  const blockHeight = Math.max(MIN_HEIGHT_PX, Math.round(heightFraction * TOWER_HEIGHT_PX));
-                  const isActive = li === activeLayerIdx;
-                  const isPanelOpen = panelTarget?.layerIdx === li;
+                {(() => {
+                  const filtered = layers.filter(l => {
+                    if (layerFilter && !l.name.toLowerCase().includes(layerFilter.toLowerCase())) return false;
+                    if (hideNonParticipating && !l.participating) return false;
+                    if (hideNonAssigned && selectedCov) {
+                      const li = layers.indexOf(l);
+                      const a = getAssignment(selectedCov.coverageKindId, li);
+                      if (a?.excluded) return false;
+                      if (li > 0 && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current)) return false;
+                    }
+                    return true;
+                  });
+                  const primaryLayer = filtered.find(l => layers.indexOf(l) === 0);
+                  const excessLayers = filtered.filter(l => layers.indexOf(l) !== 0);
 
-                  let blockClass = "cst-layer-block";
-                  if (isLocked) blockClass += " cst-layer-block--locked";
-                  else if (isExcluded) blockClass += " cst-layer-block--excluded";
-                  else blockClass += " cst-layer-block--included";
-                  if (isActive && !isLocked && !isExcluded) blockClass += " cst-layer-block--active";
-                  if (!isLocked) blockClass += " cst-layer-block--readonly";
+                  const renderBlock = (layer, _fi) => {
+                    const li = layers.indexOf(layer);
+                    const assignment = getAssignment(selectedCov.coverageKindId, li) || {};
+                    const isPrimary = li === 0;
+                    const isExcluded = !isPrimary && assignment.excluded === true;
+                    const isLocked = !isPrimary && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current);
+                    const rangeSize = Math.max(0, (layer.rangeTo || 0) - (layer.rangeFrom || 0));
+                    const heightFraction = totalRange > 0 ? rangeSize / totalRange : 1 / layers.length;
+                    const blockHeight = Math.max(MIN_HEIGHT_PX, Math.round(heightFraction * TOWER_HEIGHT_PX));
+                    const isActive = li === activeLayerIdx;
+                    const isPanelOpen = panelTarget?.layerIdx === li;
 
-                  return (
-                    <div
-                      key={layer.id}
-                      className={blockClass}
-                      style={{ minHeight: blockHeight, cursor: (isLocked || isExcluded) ? "default" : "pointer" }}
-                      onClick={() => { if (!isLocked && !isExcluded) onLayerChange(li); }}
-                    >
-                      <div className="cst-block-head">
-                        <span
-                          className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}
-                          style={{ fontSize: 10, padding: "2px 7px", cursor: "pointer" }}
-                          onClick={e => { e.stopPropagation(); onLayerChange(li); }}
-                        >
-                          {layer.type || "Excess"}
-                        </span>
-                        <span
-                          className="cst-block-name"
-                          style={{ cursor: "pointer" }}
-                          onClick={e => { e.stopPropagation(); onLayerChange(li); }}
-                        >
-                          {layer.name}
-                        </span>
-                        <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
-                        <span className={`cst-block-status-badge cst-block-status-badge--${isLocked ? "locked" : isExcluded ? "excluded" : "included"}`}>
-                          {isLocked ? "Locked" : isExcluded ? "Excluded" : "Included"}
-                        </span>
+                    let blockClass = "cst-layer-block";
+                    if (isLocked) blockClass += " cst-layer-block--locked";
+                    else if (isExcluded) blockClass += " cst-layer-block--excluded";
+                    else blockClass += " cst-layer-block--included";
+                    if (isActive && !isLocked && !isExcluded) blockClass += " cst-layer-block--active";
+                    if (!isLocked) blockClass += " cst-layer-block--readonly";
 
-                        {/* Panel open/close — pencil icon only (disabled on Primary = read-only) */}
-                        {!isLocked && !isPrimary && (
-                          <button
-                            className="cst-block-edit-btn"
-                            title={isExcluded ? "Restore / configure" : "Edit coverage assignment"}
-                            onClick={e => { e.stopPropagation(); isPanelOpen ? setPanelTarget(null) : openPanel(li); }}
+                    return (
+                      <div
+                        key={layer.id}
+                        className={blockClass}
+                        style={{ minHeight: blockHeight, cursor: (isLocked || isExcluded) ? "default" : "pointer" }}
+                        onClick={() => { if (!isLocked && !isExcluded) onLayerChange(li); }}
+                      >
+                        <div className="cst-block-head">
+                          <span
+                            className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}
+                            style={{ fontSize: 10, padding: "2px 7px", cursor: "pointer" }}
+                            onClick={e => { e.stopPropagation(); onLayerChange(li); }}
                           >
-                            {isExcluded
-                              ? <i className="fa-solid fa-rotate-left" />
-                              : <i className="fa-solid fa-pencil" />
-                            }
-                          </button>
+                            {layer.type || "Excess"}
+                          </span>
+                          <span
+                            className="cst-block-name"
+                            style={{ cursor: "pointer" }}
+                            onClick={e => { e.stopPropagation(); onLayerChange(li); }}
+                          >
+                            {layer.name}
+                          </span>
+                          <span className="cst-block-range">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</span>
+                          <span className={`cst-block-status-badge cst-block-status-badge--${isLocked ? "locked" : isExcluded ? "excluded" : "included"}`}>
+                            {isLocked ? "Locked" : isExcluded ? "Excluded" : "Included"}
+                          </span>
+
+                          {/* Panel open/close — pencil icon only (disabled on Primary = read-only) */}
+                          {!isLocked && !isPrimary && (
+                            <button
+                              className="cst-block-edit-btn"
+                              title={isExcluded ? "Restore / configure" : "Edit coverage assignment"}
+                              onClick={e => { e.stopPropagation(); isPanelOpen ? setPanelTarget(null) : openPanel(li); }}
+                            >
+                              {isExcluded
+                                ? <i className="fa-solid fa-rotate-left" />
+                                : <i className="fa-solid fa-pencil" />
+                              }
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Panel: read-only value summary for included non-locked blocks */}
+                        {!isExcluded && !isLocked && (
+                          <div className="cst-block-val-row">
+                            <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{assignment.sublimit ? fmtEUR(Number(assignment.sublimit)) : "—"}</span></span>
+                            <span><span className="cst-val-label">Shared Sublimit </span><span className="cst-val-num">{assignment.sharedSublimit ? fmtEUR(Number(assignment.sharedSublimit)) : "—"}</span></span>
+                            <span><span className="cst-val-label">Deductible </span><span className="cst-val-num">{assignment.deductible ? fmtEUR(Number(assignment.deductible)) : "—"}</span></span>
+                            <span><span className="cst-val-label">Retro Cover </span><span className="cst-val-num">{assignment.retroDateYears ? `${assignment.retroDateYears}y` : "—"}</span></span>
+                            <span><span className="cst-val-label">Indemnity </span><span className="cst-val-num">{assignment.indemnityPeriodValue ? `${assignment.indemnityPeriodValue} ${assignment.indemnityPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
+                            <span><span className="cst-val-label">Waiting </span><span className="cst-val-num">{assignment.waitingPeriodValue ? `${assignment.waitingPeriodValue} ${assignment.waitingPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
+                          </div>
+                        )}
+
+                        {/* Excluded (not locked) — empty body spacer */}
+                        {isExcluded && !isLocked && (
+                          <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--fg-faint)" }}>
+                            Not assigned to this layer
+                          </div>
+                        )}
+
+                        {/* Status text for locked blocks */}
+                        {isLocked && (
+                          <span style={{ fontSize: 12, color: "var(--fg-faint)", padding: "10px 16px", display: "block" }}>
+                            Excluded by cascade
+                          </span>
                         )}
                       </div>
+                    );
+                  };
 
-                      {/* Panel: read-only value summary for included non-locked blocks */}
-                      {!isExcluded && !isLocked && (
-                        <div className="cst-block-val-row">
-                          <span><span className="cst-val-label">Sublimit </span><span className="cst-val-num">{assignment.sublimit ? fmtEUR(Number(assignment.sublimit)) : "—"}</span></span>
-                          <span><span className="cst-val-label">Shared Sublimit </span><span className="cst-val-num">{assignment.sharedSublimit ? fmtEUR(Number(assignment.sharedSublimit)) : "—"}</span></span>
-                          <span><span className="cst-val-label">Deductible </span><span className="cst-val-num">{assignment.deductible ? fmtEUR(Number(assignment.deductible)) : "—"}</span></span>
-                          <span><span className="cst-val-label">Retro Cover </span><span className="cst-val-num">{assignment.retroDateYears ? `${assignment.retroDateYears}y` : "—"}</span></span>
-                          <span><span className="cst-val-label">Indemnity </span><span className="cst-val-num">{assignment.indemnityPeriodValue ? `${assignment.indemnityPeriodValue} ${assignment.indemnityPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
-                          <span><span className="cst-val-label">Waiting </span><span className="cst-val-num">{assignment.waitingPeriodValue ? `${assignment.waitingPeriodValue} ${assignment.waitingPeriodUnit === "HOUR" ? "h" : "mo"}` : "—"}</span></span>
+                  return (
+                    <>
+                      {primaryLayer && renderBlock(primaryLayer, 0)}
+                      {excessLayers.length > 0 && (
+                        <div className="cst-tree-branch">
+                          {excessLayers.map((layer, i) => (
+                            <div key={layer.id} className={`cst-tree-branch__item${i === excessLayers.length - 1 ? " cst-tree-branch__item--last" : ""}`}>
+                              {renderBlock(layer, i + 1)}
+                            </div>
+                          ))}
                         </div>
                       )}
-
-                      {/* Excluded (not locked) — empty body spacer */}
-                      {isExcluded && !isLocked && (
-                        <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--fg-faint)" }}>
-                          Not assigned to this layer
-                        </div>
-                      )}
-
-                      {/* Status text for locked blocks */}
-                      {isLocked && (
-                        <span style={{ fontSize: 12, color: "var(--fg-faint)", padding: "10px 16px", display: "block" }}>
-                          Excluded by cascade
-                        </span>
-                      )}
-                    </div>
+                    </>
                   );
-                })}
+                })()}
               </div>
               </div>
             </>

@@ -1655,23 +1655,58 @@ body {
   flex-shrink: 0;
 }
 
+/* Tree branch hierarchy: Primary → Excess layers */
+.cst-tree-branch {
+  position: relative;
+  margin-left: 16px;
+  padding-left: 20px;
+  border-left: 1.5px solid var(--border-strong, #c6c7c8);
+}
+.cst-tree-branch__item {
+  position: relative;
+}
+.cst-tree-branch__item + .cst-tree-branch__item {
+  margin-top: 12px;
+}
+.cst-tree-branch__item::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 20px;
+  height: 1.1px;
+  background: var(--border-strong, #c6c7c8);
+}
+.cst-tree-branch__item--last {
+  /* hide the vertical line below the last item */
+}
+.cst-tree-branch__item--last::after {
+  content: "";
+  position: absolute;
+  left: -21.5px;
+  top: calc(50% + 1px);
+  bottom: -13px;
+  width: 4px;
+  background: var(--bg-elev, #fff);
+}
+
 /* Tower: column-reverse so Primary sits at bottom */
 .cst-tower-scroll {
   padding: 12px;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .cst-tower {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   min-height: 440px;
 }
 
 .cst-layer-block {
   border-radius: 8px;
   padding: 0;
-  border: 1.5px solid var(--border-soft);
+  border: 1.5px solid var(--border-strong, #c6c7c8);
   transition: border-color 0.15s, box-shadow 0.15s;
   cursor: default;
   display: flex;
@@ -1692,7 +1727,6 @@ body {
 
 .cst-layer-block--included {
   background: var(--bg-elev);
-  border-color: var(--border-soft);
 }
 .cst-layer-block--excluded {
   background-color: var(--bg-sunk);
