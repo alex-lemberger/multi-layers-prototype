@@ -2631,7 +2631,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                     {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
                   </span>
                   <span className="cst-tree-row__label">{cov.coverageName}</span>
-                  {isSelected && <i className="fa-solid fa-chevron-right cst-tree-row__arrow" style={{ marginLeft: "auto" }} />}
                 </div>
               );
             })}
