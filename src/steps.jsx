@@ -2645,13 +2645,6 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
             {selectedCov && (
               <span className="cst-panel-header__sub">{selectedCov.coverageName}</span>
             )}
-            <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
-              <i className="fa-solid fa-magnifying-glass" />
-              <input
-                type="text" placeholder="Filter…"
-                value={layerFilter} onChange={e => setLayerFilter(e.target.value)}
-              />
-            </div>
           </div>
           {!selectedCov ? (
             <div className="cst-tower-empty">
