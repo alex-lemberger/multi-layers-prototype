@@ -4374,6 +4374,8 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
   const [filter, setFilter] = useS("");
   const [showOnlyActive, setShowOnlyActive] = useS(false);
   const [expandedCards, setExpandedCards] = useS({});
+  const [hideNonParticipating, setHideNonParticipating] = useS(false);
+  const [hideNonAssigned, setHideNonAssigned] = useS(false);
   const [panelTarget, setPanelTarget] = useS(null);
   const [panelDraft, setPanelDraft] = useS({});
   const [inheritToExcess, setInheritToExcess] = useS(false);
@@ -4582,8 +4584,27 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
           <div className="csv4-layers-title">
             <i className="fa-solid fa-layer-group" /> Layers
           </div>
+          <div className="cst-filter-bar">
+            <label className="cst-filter-toggle">
+              <input type="checkbox" checked={hideNonParticipating} onChange={e => setHideNonParticipating(e.target.checked)} />
+              <span>Hide non-participating</span>
+            </label>
+            <label className="cst-filter-toggle">
+              <input type="checkbox" checked={hideNonAssigned} onChange={e => setHideNonAssigned(e.target.checked)} />
+              <span>Hide non-assigned</span>
+            </label>
+          </div>
           <div className="csv4-layers-scroll">
-            {layers.filter(l => l.participating).map((layer) => {
+            {layers.filter(l => {
+              if (hideNonParticipating && !l.participating) return false;
+              if (hideNonAssigned && selectedCov) {
+                const li = layers.indexOf(l);
+                const a = getAssignment(selectedCov.coverageKindId, li);
+                if (a?.excluded) return false;
+                if (li > 0 && isCascadeLocked(selectedCov.coverageKindId, li, parentMapRef.current)) return false;
+              }
+              return true;
+            }).map((layer) => {
               const li = layers.indexOf(layer);
               const isActive = li === activeLayerIdx;
               const isExpanded = !!expandedCards[li];
