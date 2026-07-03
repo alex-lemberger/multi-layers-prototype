@@ -4004,16 +4004,16 @@ function FinalDecisionScreen({ layers }) {
   const [panelLi, setPanelLi] = useS(null);
   const [draft, setDraft] = useS(null);
   const [isStuck, setIsStuck] = useS(false);
-  const sentinelRef = React.useRef(null);
+  const obsRef = React.useRef(null);
 
-  useE(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
+  const sentinelRef = React.useCallback((el) => {
+    if (obsRef.current) { obsRef.current.disconnect(); obsRef.current = null; }
+    if (!el) { setIsStuck(false); return; }
     const obs = new IntersectionObserver(([entry]) => {
       setIsStuck(!entry.isIntersecting);
     }, { threshold: 1.0 });
     obs.observe(el);
-    return () => obs.disconnect();
+    obsRef.current = obs;
   }, []);
 
   useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
