@@ -4003,6 +4003,18 @@ function FinalDecisionScreen({ layers }) {
   const [, forceRender] = useS(0);
   const [panelLi, setPanelLi] = useS(null);
   const [draft, setDraft] = useS(null);
+  const [isStuck, setIsStuck] = useS(false);
+  const sentinelRef = React.useRef(null);
+
+  useE(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      setIsStuck(!entry.isIntersecting);
+    }, { threshold: 1.0 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   useE(() => { seedFdDecisions(layers); forceRender(n => n + 1); }, []);
 
@@ -4129,7 +4141,9 @@ function FinalDecisionScreen({ layers }) {
 
         {/* Finalise button / result */}
         {!isFinalized ? (
-          <div className="fd-finalise-row">
+          <>
+          <div ref={sentinelRef} style={{ height: 1 }} />
+          <div className={`fd-finalise-row${isStuck ? " fd-finalise-row--stuck" : ""}`}>
             <button
               className="btn btn--primary"
               disabled={!allHaveDecision}
@@ -4152,6 +4166,7 @@ function FinalDecisionScreen({ layers }) {
               Reset (demo)
             </button>
           </div>
+          </>
         ) : (
           <div className="fd-timeline">
             <div className="fd-timeline__item">

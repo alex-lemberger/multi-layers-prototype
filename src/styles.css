@@ -2105,6 +2105,7 @@ body {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
+  white-space: nowrap;
 }
 .fd-status--pending    { background: #f0f0f0; color: #888; }
 .fd-status--accepted   { background: #e8f5e9; color: #388e3c; }
@@ -2192,18 +2193,25 @@ body {
 }
 
 .fd-finalise-row {
-  position: fixed;
+  position: sticky;
   bottom: 0;
-  left: 314px;
-  right: 0;
-  padding: 16px 36px;
   display: flex;
   align-items: center;
   gap: 12px;
   background: var(--bg-elev);
+  border-top: 1px solid transparent;
+  z-index: 10;
+  margin-top: 24px;
+}
+.fd-finalise-row--stuck {
+  bottom: -30px;
+  padding: 16px 0;
+  margin-left: -36px;
+  margin-right: -36px;
+  padding-left: 36px;
+  padding-right: 36px;
   border-top: 1px solid var(--border);
   box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
-  z-index: 10;
 }
 
 /* Top-right stat shown in the Final Decision title row once the offer is finalised */
