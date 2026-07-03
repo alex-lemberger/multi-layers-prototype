@@ -2631,6 +2631,15 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
                     {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
                   </span>
                   <span className="cst-tree-row__label">{cov.coverageName}</span>
+                  {cov.selected && !locked && (
+                    <button
+                      className="cst-tree-row__edit"
+                      title="Edit coverage limits"
+                      onClick={e => { e.stopPropagation(); selectCov(cov); openPanel(activeLayerIdx); }}
+                    >
+                      <i className="fa-solid fa-pencil" />
+                    </button>
+                  )}
                 </div>
               );
             })}
