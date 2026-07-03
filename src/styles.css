@@ -3175,7 +3175,7 @@ body {
 
 /* Left: layer cards panel */
 .csv4-layers-panel {
-  width: 320px;
+  width: 400px;
   flex-shrink: 0;
   border: none;
   border-right: 1px solid var(--border);
