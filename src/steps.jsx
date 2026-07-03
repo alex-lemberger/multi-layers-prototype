@@ -4359,3 +4359,455 @@ function FinalDecisionScreen({ layers }) {
     </div>
   );
 }
+
+// ============================================================================
+// Coverage Spreading V4 — "Layer Cards + Tree" variant
+// Left: layer cards (brief display + collapsible details)
+// Right: coverages tree (reused from V1) scoped to selected layer
+// ============================================================================
+
+function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEdit }) {
+  const [coverageTree, setCoverageTree] = useS(null);
+  const [collapsed, setCollapsed] = useS({});
+  const [selectedKindId, setSelectedKindId] = useS(null);
+  const [selectedCov, setSelectedCov] = useS(null);
+  const [filter, setFilter] = useS("");
+  const [showOnlyActive, setShowOnlyActive] = useS(false);
+  const [expandedCards, setExpandedCards] = useS({});
+  const [panelTarget, setPanelTarget] = useS(null);
+  const [panelDraft, setPanelDraft] = useS({});
+  const [inheritToExcess, setInheritToExcess] = useS(false);
+  const { getAssignment, setExcluded, setFields } = useSpreadingState();
+  const parentMapRef = React.useRef({});
+  const covNameByIdRef = React.useRef({});
+
+  useE(() => {
+    fetch("coverage.json")
+      .then(r => r.json())
+      .then(data => {
+        setCoverageTree(data);
+        data.forEach(root => seedAssignments(root));
+        parentMapRef.current = buildParentMap(data);
+        covNameByIdRef.current = buildNameMap(data);
+        const first = findFirstSelected(data);
+        if (first) { setSelectedKindId(first.coverageKindId); setSelectedCov(first); }
+      })
+      .catch(() => setCoverageTree([]));
+  }, []);
+
+  function seedAssignments(cov) {
+    layers.forEach((_, li) => {
+      const key = cov.coverageKindId + "_" + li;
+      if (_spreadingAssignments[key] !== undefined) return;
+      _spreadingAssignments[key] = {
+        excluded: false, sublimit: "", sharedSublimit: "", deductible: "",
+        retroDateYears: "", indemnityPeriodValue: "", indemnityPeriodUnit: "MONTH",
+        waitingPeriodValue: "", waitingPeriodUnit: "HOUR",
+      };
+    });
+    (cov.children || []).forEach(child => seedAssignments(child));
+  }
+
+  function buildParentMap(items, parentId = null, map = {}) {
+    items.forEach(cov => {
+      if (parentId) map[cov.coverageKindId] = parentId;
+      if (cov.children?.length) buildParentMap(cov.children, cov.coverageKindId, map);
+    });
+    return map;
+  }
+
+  function buildNameMap(items, map = {}) {
+    items.forEach(cov => {
+      map[cov.coverageKindId] = (cov.coverageName || "").trim();
+      if (cov.children?.length) buildNameMap(cov.children, map);
+    });
+    return map;
+  }
+
+  function findFirstSelected(items) {
+    for (const item of items) {
+      if (item.selected) return item;
+      if (item.children) { const f = findFirstSelected(item.children); if (f) return f; }
+    }
+    return null;
+  }
+
+  function isCascadeLocked(kindId, layerIdx, parentMap) {
+    if (layerIdx === 0) return false;
+    for (let j = 1; j < layerIdx; j++) {
+      if (_spreadingAssignments[kindId + "_" + j]?.excluded === true) return true;
+    }
+    const parentId = parentMap[kindId];
+    if (parentId) {
+      if (_spreadingAssignments[parentId + "_" + layerIdx]?.excluded === true) return true;
+      if (isCascadeLocked(parentId, layerIdx, parentMap)) return true;
+    }
+    return false;
+  }
+
+  function countIncluded(layerIdx) {
+    if (!coverageTree) return 0;
+    let count = 0;
+    const walk = (items) => {
+      items.forEach(cov => {
+        const a = getAssignment(cov.coverageKindId, layerIdx);
+        if (cov.selected && !a?.excluded && !isCascadeLocked(cov.coverageKindId, layerIdx, parentMapRef.current)) count++;
+        if (cov.children) walk(cov.children);
+      });
+    };
+    walk(coverageTree);
+    return count;
+  }
+
+  const toggleCovSelected = (kindId) => {
+    const deselectAll = (items) => items.map(c => ({
+      ...c, selected: false, ...(c.children ? { children: deselectAll(c.children) } : {})
+    }));
+    const toggle = (items) => items.map(c => {
+      if (c.coverageKindId === kindId) {
+        const newSelected = !c.selected;
+        if (!newSelected && c.children) return { ...c, selected: false, children: deselectAll(c.children) };
+        return { ...c, selected: newSelected };
+      }
+      return c.children ? { ...c, children: toggle(c.children) } : c;
+    });
+    setCoverageTree(prev => {
+      const next = toggle(prev);
+      if (selectedKindId) {
+        const isAncestor = (id, targetId, pMap) => {
+          let cur = targetId;
+          while (pMap[cur]) { cur = pMap[cur]; if (cur === id) return true; }
+          return false;
+        };
+        const deselecting = findCovById(next, kindId);
+        if (deselecting && !deselecting.selected) {
+          if (kindId === selectedKindId || isAncestor(kindId, selectedKindId, parentMapRef.current)) {
+            setSelectedKindId(null); setSelectedCov(null); setPanelTarget(null);
+          }
+        }
+      }
+      return next;
+    });
+  };
+
+  function findCovById(items, kindId) {
+    for (const item of items) {
+      if (item.coverageKindId === kindId) return item;
+      if (item.children) { const f = findCovById(item.children, kindId); if (f) return f; }
+    }
+    return null;
+  }
+
+  function hasDescendantMatch(cov, f) {
+    if (!f || !cov.children) return false;
+    return cov.children.some(c => c.coverageName.toLowerCase().includes(f.toLowerCase()) || hasDescendantMatch(c, f));
+  }
+
+  const flattenTree = (items, depth, parentDeselected) => {
+    const rows = [];
+    items.forEach(cov => {
+      const hasChildren = cov.children && cov.children.length > 0;
+      const matchesFilter = !filter || cov.coverageName.toLowerCase().includes(filter.toLowerCase());
+      const descendantMatches = hasChildren && hasDescendantMatch(cov, filter);
+      if (filter && !matchesFilter && !descendantMatches) return;
+      if (showOnlyActive && !cov.selected) {
+        if (hasChildren && !collapsed[cov.coverageKindId]) {
+          rows.push(...flattenTree(cov.children, depth, true));
+        }
+        return;
+      }
+      const locked = !!parentDeselected;
+      rows.push({ cov, depth, hasChildren, isCollapsed: !!collapsed[cov.coverageKindId], locked });
+      if (hasChildren && !collapsed[cov.coverageKindId]) {
+        rows.push(...flattenTree(cov.children, depth + 1, locked || !cov.selected));
+      }
+    });
+    return rows;
+  };
+
+  const toggleCollapse = (kindId, e) => { e.stopPropagation(); setCollapsed(c => ({ ...c, [kindId]: !c[kindId] })); };
+  const selectCov = (cov) => { setSelectedKindId(cov.coverageKindId); setSelectedCov(cov); setPanelTarget(null); };
+  const toggleCard = (layerIdx) => setExpandedCards(prev => ({ ...prev, [layerIdx]: !prev[layerIdx] }));
+
+  const openPanel = (li) => {
+    const a = getAssignment(selectedCov.coverageKindId, li) || {};
+    setPanelDraft({
+      sublimit: a.sublimit || "", sharedSublimit: a.sharedSublimit || "",
+      deductible: a.deductible || "", retroDateYears: a.retroDateYears || "",
+      indemnityPeriodValue: a.indemnityPeriodValue || "", indemnityPeriodUnit: a.indemnityPeriodUnit || "MONTH",
+      waitingPeriodValue: a.waitingPeriodValue || "", waitingPeriodUnit: a.waitingPeriodUnit || "HOUR",
+    });
+    setPanelTarget({ layerIdx: li });
+    setInheritToExcess(false);
+  };
+
+  const savePanel = () => {
+    if (!panelTarget || !selectedCov) return;
+    const li = panelTarget.layerIdx;
+    const fieldsToPush = {
+      sublimit: panelDraft.sublimit, sharedSublimit: panelDraft.sharedSublimit,
+      deductible: panelDraft.deductible, retroDateYears: panelDraft.retroDateYears,
+      indemnityPeriodValue: panelDraft.indemnityPeriodValue, indemnityPeriodUnit: panelDraft.indemnityPeriodUnit,
+      waitingPeriodValue: panelDraft.waitingPeriodValue, waitingPeriodUnit: panelDraft.waitingPeriodUnit,
+    };
+    const key = selectedCov.coverageKindId + "_" + li;
+    _spreadingAssignments[key] = { ..._spreadingAssignments[key], ...fieldsToPush };
+    if (inheritToExcess && li === 0) {
+      layers.forEach((_, excessLi) => {
+        if (excessLi === 0) return;
+        const excessKey = selectedCov.coverageKindId + "_" + excessLi;
+        _spreadingAssignments[excessKey] = { ...(_spreadingAssignments[excessKey] || {}), ...fieldsToPush };
+      });
+    }
+    _saveSpreadingToLS();
+    _spreadingListeners.forEach(fn => fn());
+    setPanelTarget(null);
+  };
+
+  const treeRows = coverageTree ? flattenTree(coverageTree, 0, false) : [];
+  const panelLayer = panelTarget != null ? layers[panelTarget.layerIdx] : null;
+
+  if (!coverageTree) return <div className="main__title">Coverage Spreading V4</div>;
+
+  return (
+    <div>
+      <div className="main__title">Coverage Spreading V4</div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 20 }}>
+        Layer cards with coverage tree — select a layer to view its coverages.
+      </p>
+
+      <div className="csv4-layout">
+        {/* LEFT: Layer Cards */}
+        <div className="csv4-layers-panel">
+          <div className="csv4-layers-title">
+            <i className="fa-solid fa-layer-group" /> Layers
+          </div>
+          <div className="csv4-layers-scroll">
+            {layers.filter(l => l.participating).map((layer) => {
+              const li = layers.indexOf(layer);
+              const isActive = li === activeLayerIdx;
+              const isExpanded = !!expandedCards[li];
+              const included = countIncluded(li);
+              return (
+                <div
+                  key={layer.id}
+                  className={`csv4-layer-card${isActive ? " csv4-layer-card--active" : ""}`}
+                  onClick={() => onLayerChange(li)}
+                >
+                  <div className="csv4-card-brief">
+                    <div className="csv4-card-brief__top">
+                      <span className={`ls-type-badge ls-type-badge--${(layer.type || "excess").toLowerCase()}`}>
+                        {layer.type || "Excess"}
+                      </span>
+                      <span className="csv4-card-brief__name">{layer.name}</span>
+                      <button
+                        className="csv4-card-expand-btn"
+                        title={isExpanded ? "Collapse" : "Show details"}
+                        onClick={e => { e.stopPropagation(); toggleCard(li); }}
+                      >
+                        <i className={`fa-solid fa-chevron-${isExpanded ? "up" : "down"}`} />
+                      </button>
+                    </div>
+                    <div className="csv4-card-brief__meta">
+                      <span className="csv4-card-brief__range">
+                        <i className="fa-solid fa-arrows-up-down" style={{ fontSize: 10 }} />
+                        {fmtShortRange(layer.rangeFrom, layer.rangeTo)}
+                      </span>
+                      <span className="csv4-card-brief__coverages">
+                        <i className="fa-solid fa-shield-halved" style={{ fontSize: 10 }} />
+                        {included} coverage{included !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="csv4-card-details">
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Limit</span>
+                        <span className="csv4-detail-row__value">{layer.limit ? fmtEUR(layer.limit) : "—"}</span>
+                      </div>
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Attachment Point</span>
+                        <span className="csv4-detail-row__value">{layer.attachmentPoint != null ? fmtEUR(layer.attachmentPoint) : "—"}</span>
+                      </div>
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Deductible</span>
+                        <span className="csv4-detail-row__value">{layer.deductible != null ? fmtEUR(layer.deductible) : "—"}</span>
+                      </div>
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Product</span>
+                        <span className="csv4-detail-row__value">{layer.product || "—"}</span>
+                      </div>
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Premium</span>
+                        <span className="csv4-detail-row__value">{layer.premium ? fmtEUR(layer.premium) : "Pending"}</span>
+                      </div>
+                      <div className="csv4-detail-row">
+                        <span className="csv4-detail-row__label">Rate</span>
+                        <span className="csv4-detail-row__value">{layer.rate || "—"}</span>
+                      </div>
+                      <button
+                        className="csv4-card-edit-btn"
+                        onClick={e => { e.stopPropagation(); if (onEdit) onEdit(li); }}
+                      >
+                        <i className="fa-solid fa-pencil" /> Edit Layer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT: Coverages Tree */}
+        <div className="csv4-tree-panel">
+          <div className="cst-panel-header">
+            <i className="fa-solid fa-shield-halved" /><span className="cst-panel-header__title">Coverages</span>
+            <span className="cst-panel-header__sub">{layers[activeLayerIdx]?.name || "—"}</span>
+            <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
+              <i className="fa-solid fa-magnifying-glass" />
+              <input type="text" placeholder="Filter…" value={filter} onChange={e => setFilter(e.target.value)} />
+            </div>
+          </div>
+          <div className="cst-filter-bar">
+            <label className="cst-filter-toggle">
+              <input type="checkbox" checked={showOnlyActive} onChange={e => setShowOnlyActive(e.target.checked)} />
+              <span>Show only active coverages</span>
+            </label>
+          </div>
+          <div className="cst-tree-scroll">
+            {treeRows.map(({ cov, depth, hasChildren, isCollapsed, locked }) => {
+              const isSelected = cov.coverageKindId === selectedKindId;
+              const li = activeLayerIdx;
+              const assignment = getAssignment(cov.coverageKindId, li) || {};
+              const isExcluded = li > 0 && assignment.excluded === true;
+              const isLocked = li > 0 && isCascadeLocked(cov.coverageKindId, li, parentMapRef.current);
+              return (
+                <div
+                  key={cov.coverageKindId}
+                  className={`cst-tree-row${cov.selected ? " cst-tree-row--checked" : ""}${isSelected ? " cst-tree-row--selected" : ""}${locked ? " cst-tree-row--locked" : ""}${isExcluded ? " csv4-tree-row--excluded" : ""}${isLocked ? " csv4-tree-row--cascade-locked" : ""}`}
+                  style={{ paddingLeft: 12 + depth * 22 }}
+                  onClick={() => !locked && cov.selected && selectCov(cov)}
+                >
+                  {hasChildren ? (
+                    <button className="ct-chevron" style={{ flexShrink: 0 }} onClick={e => toggleCollapse(cov.coverageKindId, e)}>
+                      <i className={`fa-solid fa-chevron-${isCollapsed ? "right" : "down"}`} style={{ fontSize: 10 }} />
+                    </button>
+                  ) : (
+                    <span style={{ width: 20, flexShrink: 0 }} />
+                  )}
+                  <span
+                    className={`ct-check${cov.selected ? " ct-check--on" : ""}${isExcluded || isLocked ? " ct-check--dim" : ""}`}
+                    style={{ flexShrink: 0, cursor: locked ? "not-allowed" : "pointer" }}
+                    onClick={e => { e.stopPropagation(); if (!locked) toggleCovSelected(cov.coverageKindId); }}
+                  >
+                    {cov.selected && <i className="fa-solid fa-check" style={{ fontSize: 9, color: "#fff" }} />}
+                  </span>
+                  <span className="cst-tree-row__label" style={{ opacity: isExcluded || isLocked ? 0.5 : 1 }}>
+                    {cov.coverageName}
+                  </span>
+                  {isExcluded && !isLocked && (
+                    <span className="csv4-excluded-badge">Excluded</span>
+                  )}
+                  {isLocked && (
+                    <span className="csv4-locked-badge">Locked</span>
+                  )}
+                  {cov.selected && !locked && !isExcluded && !isLocked && (
+                    <button
+                      className="cst-tree-row__edit"
+                      title="Edit coverage limits"
+                      onClick={e => { e.stopPropagation(); selectCov(cov); openPanel(activeLayerIdx); }}
+                    >
+                      <i className="fa-solid fa-pencil" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Edit Panel ---- */}
+      {panelTarget !== null && panelLayer && selectedCov && (
+        <div className="cst-panel-overlay">
+          <div className="cst-panel">
+            <div className="cst-panel__header">
+              <div className="cst-panel__titles">
+                <span className="cst-panel__layer">{panelLayer.name} · {fmtShortRange(panelLayer.rangeFrom, panelLayer.rangeTo)}</span>
+                <span className="cst-panel__cov">{selectedCov.coverageName}</span>
+              </div>
+              <button className="drawer__close" onClick={() => setPanelTarget(null)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="cst-panel__body">
+              {panelTarget?.layerIdx === 0 && (
+                <div
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0 12px", marginBottom: 8, borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+                  onClick={() => setInheritToExcess(v => !v)}
+                >
+                  <span style={{ fontSize: 13, color: "var(--fg)" }}>Apply values to all excess layers on save</span>
+                  <div className={`ls-toggle${inheritToExcess ? " ls-toggle--on" : ""}`}>
+                    <div className="ls-toggle__track"><div className="ls-toggle__thumb" /></div>
+                  </div>
+                </div>
+              )}
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Sublimit (agg)</span>
+                <EuroInput placeholder="e.g. 1.000.000" value={panelDraft.sublimit || ""} onChange={v => setPanelDraft(d => ({ ...d, sublimit: v }))} />
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Shared Sublimit (agg)</span>
+                <EuroInput placeholder="e.g. 500.000" value={panelDraft.sharedSublimit || ""} onChange={v => setPanelDraft(d => ({ ...d, sharedSublimit: v }))} />
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Deductible (absolute)</span>
+                <EuroInput placeholder="e.g. 50.000" value={panelDraft.deductible || ""} onChange={v => setPanelDraft(d => ({ ...d, deductible: v }))} />
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Retroactive Cover</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 3" value={panelDraft.retroDateYears || ""} onChange={e => setPanelDraft(d => ({ ...d, retroDateYears: e.target.value }))} />
+                  <span style={{ fontSize: 13, color: "var(--fg-muted)", whiteSpace: "nowrap" }}>years</span>
+                </div>
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Indemnity Period</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 12" value={panelDraft.indemnityPeriodValue || ""} onChange={e => setPanelDraft(d => ({ ...d, indemnityPeriodValue: e.target.value }))} />
+                  <select style={{ padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg)", color: "var(--fg)", cursor: "pointer" }} value={panelDraft.indemnityPeriodUnit || "MONTH"} onChange={e => setPanelDraft(d => ({ ...d, indemnityPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
+              </div>
+              <div className="cst-panel__field">
+                <span className="cst-panel__field-label">Waiting Period</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="cst-panel-input" style={{ flex: 1 }} placeholder="e.g. 8" value={panelDraft.waitingPeriodValue || ""} onChange={e => setPanelDraft(d => ({ ...d, waitingPeriodValue: e.target.value }))} />
+                  <select style={{ padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg)", color: "var(--fg)", cursor: "pointer" }} value={panelDraft.waitingPeriodUnit || "HOUR"} onChange={e => setPanelDraft(d => ({ ...d, waitingPeriodUnit: e.target.value }))}>
+                    <option value="HOUR">hours</option>
+                    <option value="MONTH">months</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="cst-panel__footer">
+              <button className="btn btn--primary" onClick={savePanel}>Save</button>
+              {panelTarget && layers[panelTarget.layerIdx]?.type !== "Primary" && (() => {
+                const li = panelTarget.layerIdx;
+                const a = getAssignment(selectedCov?.coverageKindId, li) || {};
+                return a.excluded
+                  ? <button className="btn btn--outline" style={{ color: "var(--hdi-universal-green, #65a518)", borderColor: "var(--hdi-universal-green, #65a518)" }} onClick={() => { setExcluded(selectedCov.coverageKindId, li, false); setPanelTarget(null); }}>Restore to layer</button>
+                  : <button className="btn btn--outline" style={{ color: "var(--hdi-bright-red, #e60018)", borderColor: "var(--hdi-bright-red, #e60018)" }} onClick={() => { setExcluded(selectedCov.coverageKindId, li, true); setPanelTarget(null); }}>Exclude from layer</button>;
+              })()}
+              <button className="btn btn--outline" onClick={() => setPanelTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

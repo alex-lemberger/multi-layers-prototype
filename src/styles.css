@@ -3158,3 +3158,226 @@ body {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--fg-muted);
 }
+
+/* ============================================================================
+   Coverage Spreading V4 — Layer Cards + Tree
+   ============================================================================ */
+
+.csv4-layout {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+
+/* Left: layer cards panel */
+.csv4-layers-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border: none;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+}
+
+.csv4-layers-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+  height: 49px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-sunk);
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.csv4-layers-scroll {
+  padding: 12px 16px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+/* Layer card */
+.csv4-layer-card {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.csv4-layer-card:hover {
+  border-color: var(--border-strong, #999);
+}
+
+.csv4-layer-card--active {
+  border-color: var(--accent);
+  border-width: 2px;
+  background: var(--bg-elev);
+  box-shadow: none;
+}
+
+.csv4-layer-card--active:hover {
+  border-color: var(--accent);
+  border-width: 2px;
+}
+
+/* Brief section */
+.csv4-card-brief {
+  padding: 12px 14px;
+}
+
+.csv4-card-brief__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.csv4-card-brief__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.csv4-card-expand-btn {
+  all: unset;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.csv4-card-expand-btn:hover {
+  background: var(--bg-sunk);
+  color: var(--fg);
+}
+
+.csv4-card-brief__meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.csv4-card-brief__range,
+.csv4-card-brief__coverages {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Expanded details */
+.csv4-card-details {
+  padding: 0 14px 12px;
+  border-top: 1px solid var(--border-soft, var(--border));
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.csv4-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.csv4-detail-row__label {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.csv4-detail-row__value {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.csv4-card-edit-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.csv4-card-edit-btn:hover {
+  background: var(--accent-tint, rgba(101, 165, 24, 0.08));
+}
+
+/* Right: tree panel */
+.csv4-tree-panel {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--bg-elev);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* Tree row status indicators for V4 */
+.csv4-tree-row--excluded .cst-tree-row__label {
+  text-decoration: line-through;
+}
+
+.csv4-excluded-badge,
+.csv4-locked-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.csv4-excluded-badge {
+  background: var(--hdi-red-30, #fde0e4);
+  color: var(--hdi-bright-red, #e60018);
+}
+
+.csv4-locked-badge {
+  background: var(--bg-sunk, #f0f0f0);
+  color: var(--fg-faint, #999);
+}
+
+.ct-check--dim {
+  opacity: 0.4;
+}

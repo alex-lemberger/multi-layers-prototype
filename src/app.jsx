@@ -152,6 +152,7 @@ const NAV_ITEMS_A = [
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "coverage-spreading-v2", label: "Coverage V2",         icon: "fa-solid fa-list" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
+    { id: "coverage-spreading-v4", label: "Coverage V4",         icon: "fa-solid fa-grip-vertical" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
@@ -172,6 +173,7 @@ const NAV_ITEMS_B = [
     { id: "layer-overview",       label: "Layer Overview",      icon: "fa-solid fa-table-cells", hidden: true },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
+    { id: "coverage-spreading-v4", label: "Coverage V4",         icon: "fa-solid fa-grip-vertical" },
   ]},
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
@@ -532,6 +534,7 @@ function App() {
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading-v2": return <CoverageSpreadingV2Screen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading-v3": return <CoverageSpreadingV3Screen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
+      case "coverage-spreading-v4": return <CoverageSpreadingV4Screen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onEdit={setEditTarget} />;
       case "layered-coverage-poc": return <LayeredCoveragePocScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-define":        return <PropDefineCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "prop-limits":        return <PropLimitsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
@@ -655,7 +658,7 @@ function App() {
             <h1 className="partner-banner__title">Suppella Partner International GmbH</h1>
             <div className="partner-banner__chips">
               <OptionDropdown />
-              {!["general-data", "program-coverage", "layers", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "final-decision", "layer-overview", "premium-result", "loading-discounts", "premium-rates"].includes(activeNav) && (
+              {!["general-data", "program-coverage", "layers", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "coverage-spreading-v4", "final-decision", "layer-overview", "premium-result", "loading-discounts", "premium-rates"].includes(activeNav) && (
                 <>
                   <span className="pb-divider" />
                   <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
