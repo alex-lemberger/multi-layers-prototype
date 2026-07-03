@@ -2585,7 +2585,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
       <div className="cst-layout">
         <div className="cst-tree-panel">
           <div className="cst-panel-header">
-            <span className="cst-panel-header__title">Coverages</span>
+            <i className="fa-solid fa-shield-halved" /><span className="cst-panel-header__title">Coverages</span>
             <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
               <i className="fa-solid fa-magnifying-glass" />
               <input
@@ -2641,7 +2641,7 @@ function CoverageSpreadingScreen({ layers, activeLayerIdx, onLayerChange }) {
         {/* ---- LEFT: Tower (layers-first) ---- */}
         <div className="cst-tower-panel">
           <div className="cst-panel-header">
-            <span className="cst-panel-header__title">Layers</span>
+            <i className="fa-solid fa-layer-group" /><span className="cst-panel-header__title">Layers</span>
             {selectedCov && (
               <span className="cst-panel-header__sub">{selectedCov.coverageName}</span>
             )}
