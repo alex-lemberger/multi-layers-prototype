@@ -643,14 +643,15 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
         <table className="grid-tbl">
           <thead>
             <tr>
-              <th style={{width: "18%"}}>Layer Name</th>
+              <th style={{width: "16%"}}>Layer Name</th>
               <th style={{width: "9%"}}>Type</th>
-              <th style={{width: "13%"}}>Product</th>
-              <th style={{width: "13%"}}>Range</th>
-              <th style={{width: "12%"}}>Limit</th>
-              <th style={{width: "12%"}}>Attachment Point</th>
-              <th style={{width: "12%"}}>Participation</th>
-              <th style={{width: "11%"}}>Actions</th>
+              <th style={{width: "10%"}}>Coverage</th>
+              <th style={{width: "12%"}}>Product</th>
+              <th style={{width: "12%"}}>Range</th>
+              <th style={{width: "11%"}}>Limit</th>
+              <th style={{width: "11%"}}>Attachment Point</th>
+              <th style={{width: "10%"}}>Participation</th>
+              <th style={{width: "9%"}}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -660,6 +661,12 @@ function LayersSettingsScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
               <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
                 <td className="t-strong">{layer.name}</td>
                 <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
+                <td>
+                  {layer.type === "Primary"
+                    ? <span className="follow-form-badge follow-form-badge--master"><i className="fa-solid fa-crown" style={{fontSize: 9}} /> Leading</span>
+                    : <span className="follow-form-badge"><i className="fa-solid fa-link" style={{fontSize: 9}} /> Follow Form</span>
+                  }
+                </td>
                 <td>{layer.product || "—"}</td>
                 <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
                 <td className="t-mono">{fmtEUR(layer.limit)}</td>
@@ -706,7 +713,7 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
     <div>
       <div className="main__title"><span>Layers</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
       <p className="main__subtitle" style={{marginTop: -12, marginBottom: 24}}>
-        Define the layer structure for this option. Each layer inherits the coverages selected in Program Coverage.
+        Define the layer structure for this option. Excess layers follow the Primary Layer's coverage selection (<strong>Follow Form</strong>). Individual coverages can be excluded per layer.
       </p>
 
       {/* Layer Management Table */}
@@ -726,14 +733,15 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
         <table className="grid-tbl">
           <thead>
             <tr>
-              <th style={{width: "18%"}}>Layer Name</th>
+              <th style={{width: "17%"}}>Layer Name</th>
               <th style={{width: "9%"}}>Type</th>
-              <th style={{width: "14%"}}>Range</th>
-              <th style={{width: "12%"}}>Limit</th>
-              <th style={{width: "14%"}}>Attachment Point</th>
-              <th style={{width: "11%"}}>Deductible</th>
-              <th style={{width: "12%"}}>Participation</th>
-              <th style={{width: "10%"}}>Actions</th>
+              <th style={{width: "10%"}}>Coverage</th>
+              <th style={{width: "13%"}}>Range</th>
+              <th style={{width: "11%"}}>Limit</th>
+              <th style={{width: "12%"}}>Attachment Point</th>
+              <th style={{width: "10%"}}>Deductible</th>
+              <th style={{width: "10%"}}>Participation</th>
+              <th style={{width: "8%"}}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -743,6 +751,12 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
               <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
                 <td className="t-strong">{layer.name}</td>
                 <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
+                <td>
+                  {layer.type === "Primary"
+                    ? <span className="follow-form-badge follow-form-badge--master"><i className="fa-solid fa-crown" style={{fontSize: 9}} /> Leading</span>
+                    : <span className="follow-form-badge"><i className="fa-solid fa-link" style={{fontSize: 9}} /> Follow Form</span>
+                  }
+                </td>
                 <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
                 <td className="t-mono">{fmtEUR(layer.limit)}</td>
                 <td className="t-mono">{fmtEUR(layer.attachmentPoint)}</td>
@@ -780,10 +794,10 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
       {/* Inherited coverages info */}
       <div className="ls-section">
         <div className="ls-section__header">
-          <h2 className="ls-section__title">Inherited Coverages</h2>
+          <h2 className="ls-section__title">Inherited Coverages <span className="follow-form-hint">(Follow Form)</span></h2>
         </div>
         <p style={{fontSize: 13, color: "var(--fg-muted)", marginBottom: 12}}>
-          Each layer inherits the following coverages from Program Coverage. Limits and deductibles can be configured per layer.
+          Excess layers follow the Primary Layer's coverage selection (Follow Form). Individual coverages can be <strong>excluded</strong> per layer in the Coverage Spreading screen.
         </p>
         <div className="ls-cov-chips">
           <span className="ls-cov-chip">Third Party Liability</span>
@@ -4686,6 +4700,11 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
           <div className="cst-panel-header">
             <i className="fa-solid fa-shield-halved" /><span className="cst-panel-header__title">Coverages</span>
             <span className="cst-panel-header__sub">{layers[activeLayerIdx]?.name || "—"}</span>
+            {activeLayerIdx > 0 && (
+              <span className="follow-form-badge" style={{marginLeft: 6}}>
+                <i className="fa-solid fa-link" style={{fontSize: 9}} /> Follow Form
+              </span>
+            )}
             <div className="pc-search" style={{ minWidth: 0, flex: 1 }}>
               <i className="fa-solid fa-magnifying-glass" />
               <input type="text" placeholder="Filter…" value={filter} onChange={e => setFilter(e.target.value)} />
@@ -4734,6 +4753,17 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
                   {isLocked && (
                     <span className="csv4-locked-badge">Locked</span>
                   )}
+                  {/* Inline exclude/restore toggle for excess layers */}
+                  {cov.selected && !locked && li > 0 && !isLocked && (
+                    <button
+                      className={`csv4-exclude-toggle${isExcluded ? " csv4-exclude-toggle--excluded" : ""}`}
+                      title={isExcluded ? "Restore coverage to this layer" : "Exclude coverage from this layer"}
+                      onClick={e => { e.stopPropagation(); setExcluded(cov.coverageKindId, li, !isExcluded); }}
+                    >
+                      <i className={`fa-solid ${isExcluded ? "fa-plus-circle" : "fa-minus-circle"}`} style={{fontSize: 11}} />
+                      {isExcluded ? "Restore" : "Exclude"}
+                    </button>
+                  )}
                   {cov.selected && !locked && !isExcluded && !isLocked && (
                     <button
                       className="cst-tree-row__edit"
@@ -4747,6 +4777,13 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
               );
             })}
           </div>
+          {/* Follow Form info bar for excess layers */}
+          {activeLayerIdx > 0 && (
+            <div className="csv4-follow-form-bar">
+              <i className="fa-solid fa-link" style={{fontSize: 11}} />
+              <span>Follow Form — coverages inherited from Primary Layer. Click <strong>Exclude</strong> to remove individual coverages from this layer.</span>
+            </div>
+          )}
         </div>
       </div>
 

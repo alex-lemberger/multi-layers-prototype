@@ -881,6 +881,20 @@ body {
 .ls-type-badge--primary { background: var(--accent-soft); color: var(--accent-ink); }
 .ls-type-badge--excess { background: #eef4ff; color: #2563eb; }
 
+/* Follow Form badge */
+.follow-form-badge {
+  font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f0e6ff; color: #7c3aed;
+  white-space: nowrap;
+}
+.follow-form-badge--master {
+  background: #fef3c7; color: #b45309;
+}
+.follow-form-hint {
+  font-size: 12px; font-weight: 400; color: #7c3aed; margin-left: 8px;
+}
+
 /* Active row highlight */
 .ls-row--active td { background: var(--accent-soft) !important; }
 
@@ -3377,6 +3391,33 @@ body {
   background: var(--bg-sunk, #f0f0f0);
   color: var(--fg-faint, #999);
 }
+
+/* Inline exclude/restore toggle for excess layers */
+.csv4-exclude-toggle {
+  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px;
+  border: none; cursor: pointer; flex-shrink: 0; margin-left: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fde0e4; color: var(--hdi-bright-red, #e60018);
+  transition: all 0.15s;
+}
+.csv4-exclude-toggle:hover {
+  background: var(--hdi-bright-red, #e60018); color: #fff;
+}
+.csv4-exclude-toggle--excluded {
+  background: var(--accent-soft, #e8f5e0); color: var(--accent-ink, #3d7a0a);
+}
+.csv4-exclude-toggle--excluded:hover {
+  background: var(--accent, #65a518); color: #fff;
+}
+
+/* Follow Form info bar at bottom of tree panel */
+.csv4-follow-form-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; margin-top: 8px;
+  background: #f0e6ff; border-radius: 6px;
+  font-size: 12px; color: #7c3aed;
+}
+.csv4-follow-form-bar strong { font-weight: 600; }
 
 .ct-check--dim {
   opacity: 0.4;
