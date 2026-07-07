@@ -3032,6 +3032,20 @@ body {
 .csv3-tab__name { font-size: 13px; }
 .csv3-tab__range { font-size: 11px; color: var(--fg-muted); font-family: var(--font-mono); }
 
+/* ---- Layer label (inline in summary bar) ---- */
+.csv3-layer-label__badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.csv3-layer-label__badge--primary { background: var(--accent); }
+.csv3-layer-label__badge--excess { background: #4a90d9; }
+.csv3-layer-label__name { font-size: 13px; font-weight: 600; color: var(--fg); }
+.csv3-layer-label__range { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); }
+.csv3-summary-divider {
+  width: 1px; height: 18px; background: var(--border-soft); flex-shrink: 0;
+}
+
 /* ---- Summary bar ---- */
 .csv3-summary-bar {
   display: flex; align-items: center; gap: 16px;
@@ -3285,6 +3299,25 @@ body {
   cursor: pointer;
   flex-shrink: 0;
   font-size: 11px;
+}
+
+.csv4-card-edit-inline {
+  all: unset;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 11px;
+  margin-left: auto;
+}
+.csv4-card-edit-inline:hover {
+  background: var(--bg-sunk);
+  color: var(--accent);
 }
 
 .csv4-card-expand-btn:hover {

@@ -3643,8 +3643,14 @@ function CoverageSpreadingV3Screen({ layers, activeLayerIdx, onLayerChange }) {
         ))}
       </div>
 
-      {/* Summary bar */}
+      {/* Summary bar with layer label */}
       <div className="csv3-summary-bar">
+        <span className={`csv3-layer-label__badge csv3-layer-label__badge--${layers[activeLayerIdx].type.toLowerCase()}`}>
+          {layers[activeLayerIdx].type === "Primary" ? "P" : `XS${activeLayerIdx}`}
+        </span>
+        <span className="csv3-layer-label__name">{layers[activeLayerIdx].name}</span>
+        <span className="csv3-layer-label__range">{fmtShortRange(layers[activeLayerIdx].rangeFrom, layers[activeLayerIdx].rangeTo)}</span>
+        <span className="csv3-summary-divider" />
         <span className="csv3-summary-item csv3-summary-item--included">
           <i className="fa-solid fa-circle-check" /> {includedCount} included
         </span>
@@ -4635,6 +4641,15 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
                         {layer.type || "Excess"}
                       </span>
                       <span className="csv4-card-brief__name">{layer.name}</span>
+                      {li > 0 && (
+                        <button
+                          className="csv4-card-edit-inline"
+                          title="Edit layer"
+                          onClick={e => { e.stopPropagation(); if (onEdit) onEdit(li); }}
+                        >
+                          <i className="fa-solid fa-pen" />
+                        </button>
+                      )}
                       <button
                         className="csv4-card-expand-btn"
                         title={isExpanded ? "Collapse" : "Show details"}
@@ -4681,12 +4696,14 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
                         <span className="csv4-detail-row__label">Rate</span>
                         <span className="csv4-detail-row__value">{layer.rate || "—"}</span>
                       </div>
-                      <button
-                        className="csv4-card-edit-btn"
-                        onClick={e => { e.stopPropagation(); if (onEdit) onEdit(li); }}
-                      >
-                        <i className="fa-solid fa-pencil" /> Edit Layer
-                      </button>
+                      {li > 0 && (
+                        <button
+                          className="csv4-card-edit-btn"
+                          onClick={e => { e.stopPropagation(); if (onEdit) onEdit(li); }}
+                        >
+                          <i className="fa-solid fa-pencil" /> Edit Layer
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
