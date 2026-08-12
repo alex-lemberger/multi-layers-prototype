@@ -811,6 +811,184 @@ function LayersWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, on
   );
 }
 
+// ---- Layers + Coverages screen (reduced concept — inline "Add Coverage" per layer row) ----
+const LC_AVAILABLE_COVERAGES = [
+  "Third Party Liability",
+  "Media Liability",
+  "Privacy & Network Security",
+  "Digital Data & Systems Recovery",
+  "Incident Response Costs",
+];
+
+function AddCoverageDrawer({ open, onClose, onSave, layer, initialSelected }) {
+  const [selected, setSelected] = useS(initialSelected || []);
+
+  useE(() => { setSelected(initialSelected || []); }, [layer?.id, open]);
+
+  if (!open) return null;
+
+  const toggle = (name) => {
+    setSelected(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
+  };
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer__header">
+          <div className="drawer__title">Add Coverage — {layer?.name}</div>
+          <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+        </div>
+        <div className="drawer__body">
+          <p style={{fontSize: 13, color: "var(--fg-muted)", marginBottom: 20}}>
+            Select the coverages to assign to this layer.
+          </p>
+          <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+            {LC_AVAILABLE_COVERAGES.map(name => (
+              <label key={name} style={{display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer"}}>
+                <input type="checkbox" checked={selected.includes(name)} onChange={() => toggle(name)} />
+                {name}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="drawer__footer">
+          <button className="btn btn--primary" onClick={() => { onSave(selected); onClose(); }}>
+            Save
+          </button>
+          <button className="btn btn--outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayersCoveragesWorkflowScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit }) {
+  const [filterParticipating, setFilterParticipating] = useS(false);
+  const [layerCoverages, setLayerCoverages] = useS({});
+  const [drawerTargetIdx, setDrawerTargetIdx] = useS(null);
+  const displayLayers = filterParticipating ? layers.filter(l => l.participating) : layers;
+
+  const openDrawer = (idx) => setDrawerTargetIdx(idx);
+  const closeDrawer = () => setDrawerTargetIdx(null);
+  const saveCoverages = (idx, selected) => {
+    setLayerCoverages(prev => ({ ...prev, [idx]: selected }));
+  };
+  const clearCoverages = (idx) => {
+    setLayerCoverages(prev => ({ ...prev, [idx]: [] }));
+  };
+
+  const drawerLayer = drawerTargetIdx !== null ? layers[drawerTargetIdx] : null;
+
+  return (
+    <div>
+      <div className="main__title"><span>Layers + Coverages</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <p className="main__subtitle" style={{marginTop: -12, marginBottom: 24}}>
+        Reduced concept: define the layer structure and assign coverages directly per layer row — no separate spreading step.
+      </p>
+
+      <div className="ls-section">
+        <div className="ls-section__header">
+          <h2 className="ls-section__title">Layer Structure</h2>
+          <div className="participation-filter">
+            <button className={`pf-btn${!filterParticipating ? " pf-btn--active" : ""}`} onClick={() => setFilterParticipating(false)}>
+              All Layers
+            </button>
+            <button className={`pf-btn${filterParticipating ? " pf-btn--active" : ""}`} onClick={() => setFilterParticipating(true)}>
+              Participating only
+            </button>
+          </div>
+        </div>
+
+        <table className="grid-tbl">
+          <thead>
+            <tr>
+              <th style={{width: "15%"}}>Layer Name</th>
+              <th style={{width: "8%"}}>Type</th>
+              <th style={{width: "17%"}}>Coverage</th>
+              <th style={{width: "12%"}}>Range</th>
+              <th style={{width: "10%"}}>Limit</th>
+              <th style={{width: "11%"}}>Attachment Point</th>
+              <th style={{width: "9%"}}>Deductible</th>
+              <th style={{width: "10%"}}>Participation</th>
+              <th style={{width: "8%"}}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayLayers.map((layer) => {
+              const idx = layers.indexOf(layer);
+              const selectedCoverages = layerCoverages[idx] || [];
+              return (
+              <tr key={layer.id} className={idx === activeLayerIdx ? "ls-row--active" : ""}>
+                <td className="t-strong">{layer.name}</td>
+                <td><span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()}`}>{layer.type}</span></td>
+                <td>
+                  {selectedCoverages.length > 0 ? (
+                    <div className="ls-coverage-cell">
+                      <div className="ls-cov-chips ls-cov-chips--compact">
+                        {selectedCoverages.map((name) => (
+                          <span className="ls-cov-chip ls-cov-chip--sm" key={name}>{name}</span>
+                        ))}
+                      </div>
+                      <div className="ls-actions">
+                        <button className="ls-action-btn" title="Edit coverages" onClick={() => openDrawer(idx)}>
+                          <i className="fa-solid fa-pencil" />
+                        </button>
+                        <button className="ls-action-btn ls-action-btn--delete" title="Clear coverages" onClick={() => clearCoverages(idx)}>
+                          <i className="fa-regular fa-trash-can" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button className="btn-add-row" onClick={() => openDrawer(idx)}>
+                      <i className="fa-solid fa-plus" /> Add Coverage
+                    </button>
+                  )}
+                </td>
+                <td className="t-mono t-muted">{fmtShortRange(layer.rangeFrom, layer.rangeTo)}</td>
+                <td className="t-mono">{fmtEUR(layer.limit)}</td>
+                <td className="t-mono">{fmtEUR(layer.attachmentPoint)}</td>
+                <td className="t-mono">{fmtEUR(layer.deductible)}</td>
+                <td>
+                  <span className={`status-badge ${layer.participating ? 'status-badge--participating' : 'status-badge--not-participating'}`}>
+                    {layer.participating ? "Participating" : "Non-participating"}
+                  </span>
+                </td>
+                <td>
+                  <div className="ls-actions">
+                    <button className="ls-action-btn" title="Edit layer" onClick={() => onEdit(idx)}>
+                      <i className="fa-solid fa-pencil" />
+                    </button>
+                    <button className="ls-action-btn" title="Copy layer" onClick={() => onCopy(idx)}>
+                      <i className="fa-regular fa-copy" />
+                    </button>
+                    {layers.length > 1 && (
+                      <button className="ls-action-btn ls-action-btn--delete" title="Delete layer" onClick={() => onDelete(idx)}>
+                        <i className="fa-regular fa-trash-can" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <button className="btn-add-row" onClick={onAdd}>
+          <i className="fa-solid fa-plus" /> Add Layer
+        </button>
+      </div>
+
+      <AddCoverageDrawer
+        open={drawerTargetIdx !== null}
+        onClose={closeDrawer}
+        onSave={(selected) => saveCoverages(drawerTargetIdx, selected)}
+        layer={drawerLayer}
+        initialSelected={drawerTargetIdx !== null ? (layerCoverages[drawerTargetIdx] || []) : []}
+      />
+    </div>
+  );
+}
+
 // ---- Premium Overview screen (Variant B — after Technical Premium) ----
 function PremiumOverviewScreen({ layers, activeLayerIdx, onLayerChange }) {
   const [filterIdx, setFilterIdx] = useS(-1); // -1 = all layers

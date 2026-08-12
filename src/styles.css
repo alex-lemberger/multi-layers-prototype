@@ -895,8 +895,7 @@ body {
   font-size: 12px; font-weight: 400; color: #7c3aed; margin-left: 8px;
 }
 
-/* Active row highlight */
-.ls-row--active td { background: var(--accent-soft) !important; }
+/* Active row highlight removed — no background override */
 
 /* Row actions */
 .ls-actions { display: flex; gap: 4px; }
@@ -949,6 +948,11 @@ body {
   border-radius: 16px; background: var(--accent-soft); color: var(--accent-ink);
   border: 1px solid var(--accent-tint);
 }
+
+/* Coverage cell (Layers + Coverages screen — chips + inline actions per row) */
+.ls-coverage-cell { display: flex; flex-direction: column; gap: 6px; }
+.ls-cov-chips--compact { gap: 4px; }
+.ls-cov-chip--sm { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 12px; }
 
 /* Premium Overview filter */
 .po-filter-row { margin-bottom: 16px; }

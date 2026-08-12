@@ -149,6 +149,7 @@ const NAV_ITEMS_A = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers-settings",      label: "Layer Structure",     icon: "fa-solid fa-table-list" },
+    { id: "layers-coverages",     label: "Layers + Coverages",  icon: "fa-solid fa-shield-halved" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "coverage-spreading-v2", label: "Coverage V2",         icon: "fa-solid fa-list" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
@@ -170,6 +171,7 @@ const NAV_ITEMS_B = [
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
   { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
+    { id: "layers-coverages",     label: "Layers + Coverages",  icon: "fa-solid fa-shield-halved" },
     { id: "layer-overview",       label: "Layer Overview",      icon: "fa-solid fa-table-cells", hidden: true },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
@@ -529,6 +531,7 @@ function App() {
       case "general-data":       return <GeneralDataScreen layer={activeLayer} allLayers={layers} layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
+      case "layers-coverages":   return <LayersCoveragesWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layer-overview":     return <LayerOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
@@ -658,7 +661,7 @@ function App() {
             <h1 className="partner-banner__title">Suppella Partner International GmbH</h1>
             <div className="partner-banner__chips">
               <OptionDropdown />
-              {!["general-data", "program-coverage", "layers", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "coverage-spreading-v4", "final-decision", "layer-overview", "premium-result", "loading-discounts", "premium-rates"].includes(activeNav) && (
+              {!["general-data", "program-coverage", "layers", "layers-coverages", "coverage-spreading", "coverage-spreading-v2", "coverage-spreading-v3", "coverage-spreading-v4", "final-decision", "layer-overview", "premium-result", "loading-discounts", "premium-rates"].includes(activeNav) && (
                 <>
                   <span className="pb-divider" />
                   <LayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={switchLayer} />
