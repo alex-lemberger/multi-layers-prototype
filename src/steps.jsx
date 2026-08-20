@@ -5064,3 +5064,415 @@ function CoverageSpreadingV4Screen({ layers, activeLayerIdx, onLayerChange, onEd
     </div>
   );
 }
+
+// ================================================================
+// ---- Program Structure (new design) + Claim Analysis — combined preview screen ----
+// Showcases the refined "layers-new" Program Structure concept (per-layer default
+// values + per-coverage "conditions" deviation + Structure Chart) stacked with the
+// Claim Analysis / Burning Cost feature, primary-layer-only.
+// ================================================================
+
+const LS_KEY_CLAIM_ANALYSIS = "ml_claim_analysis_v1";
+
+function defaultClaimAnalysisState() {
+  return {
+    settings: {
+      qualityOfClaimHistory: "Good",
+      developmentType: "Paid",
+      superimposedInflation: "2.5",
+      claimCurrency: "EUR",
+      exposureDegressionType: "Linear",
+      inflationCountry: "Germany",
+      inflationType: "Consumer Price Index",
+      dataCutOffDate: "2026-01-01",
+      typeOfExposure: "Turnover",
+      exposureInflationType: "Wage Inflation",
+    },
+    limits: {
+      limitOcc: "5000000",
+      limitAgg: "10000000",
+      deductibleOcc: "50000",
+      deductibleOccType: "Per Claim",
+      deductibleAgg: "150000",
+    },
+    years: [
+      { id: "y1", year: 2023, exposure: "12000000", numberOfClaims: 14, paidClaim: "820000", outstandingReserve: "60000" },
+      { id: "y2", year: 2024, exposure: "12800000", numberOfClaims: 11, paidClaim: "610000", outstandingReserve: "95000" },
+      { id: "y3", year: 2025, exposure: "13500000", numberOfClaims: 9, paidClaim: "540000", outstandingReserve: "140000" },
+    ],
+  };
+}
+
+function useClaimAnalysisState() {
+  const [data, setData] = useS(() => loadFromLS(LS_KEY_CLAIM_ANALYSIS, defaultClaimAnalysisState()));
+  useE(() => { saveToLS(LS_KEY_CLAIM_ANALYSIS, data); }, [data]);
+  return [data, setData];
+}
+
+// ---- Structure Chart (stacked-block visualization of layers) ----
+function StructureChart({ layers }) {
+  const maxTop = Math.max(...layers.map(l => l.rangeTo || 0), 1);
+  return (
+    <div className="ls-section" style={{ width: 220, flex: "0 0 220px" }}>
+      <div className="ls-section__header"><h2 className="ls-section__title">Structure Chart</h2></div>
+      <div style={{ display: "flex", flexDirection: "column-reverse", gap: 2, height: 320, padding: "4px 4px 0" }}>
+        {layers.map(layer => {
+          const heightPct = Math.max(((layer.rangeTo - layer.rangeFrom) / maxTop) * 100, 6);
+          return (
+            <div key={layer.id}
+              title={`${layer.name}: ${fmtShortRange(layer.rangeFrom, layer.rangeTo)}`}
+              style={{
+                height: `${heightPct}%`,
+                background: layer.type === "Primary" ? "var(--hdi-universal-green, #65a518)" : "#b7c6a8",
+                borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontSize: 11, fontWeight: 600, padding: "2px 4px", textAlign: "center", overflow: "hidden",
+              }}>
+              {layer.name}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 11, color: "var(--fg-muted)", marginTop: 8 }}>
+        Deductible — from primary layer only.
+      </p>
+    </div>
+  );
+}
+
+// ---- Manage coverages drawer (per-layer include + per-coverage "conditions" override) ----
+function ManageCoveragesDrawer({ open, onClose, layer, overrides, onSave }) {
+  const [rows, setRows] = useS([]);
+  const [expanded, setExpanded] = useS(null);
+
+  useE(() => {
+    if (!open || !layer) return;
+    setRows(layer.coverages.map(c => ({
+      name: c.name,
+      included: overrides?.[c.name]?.included ?? c.included,
+      limitOcc: overrides?.[c.name]?.limitOcc ?? "",
+      limitAgg: overrides?.[c.name]?.limitAgg ?? "",
+      hasConditions: !!overrides?.[c.name]?.hasConditions,
+    })));
+    setExpanded(null);
+  }, [open, layer?.id]);
+
+  if (!open) return null;
+  const isPrimary = layer.type === "Primary";
+
+  const patchRow = (name, patch) => setRows(prev => prev.map(r => r.name === name ? { ...r, ...patch } : r));
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer drawer--wide" onClick={e => e.stopPropagation()}>
+        <div className="drawer__header">
+          <div className="drawer__title">Manage coverages — {layer.name}</div>
+          <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+        </div>
+        <div className="drawer__body">
+          <p style={{ fontSize: 13, color: "var(--fg-muted)", marginBottom: 16 }}>
+            Coverages without their own conditions inherit Attachment, Limit per OCC/Claim and Aggregated Limit from {isPrimary ? "this Primary Layer's" : "the Primary Layer's"} defaults. Deductible is never overridden per layer or per coverage.
+          </p>
+          {rows.map(row => (
+            <div key={row.name} style={{ border: "1px solid var(--border, #e2e2e2)", borderRadius: 6, marginBottom: 8, padding: "10px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={row.included} onChange={e => patchRow(row.name, { included: e.target.checked })} />
+                  {row.name}
+                </label>
+                <button className="ls-action-btn" title="Own conditions"
+                  onClick={() => { patchRow(row.name, { hasConditions: true }); setExpanded(expanded === row.name ? null : row.name); }}>
+                  <i className="fa-solid fa-sliders" /> {row.hasConditions ? "Conditions" : "+ Conditions"}
+                </button>
+              </div>
+              {expanded === row.name && row.hasConditions && (
+                <div className="cst-panel__body" style={{ marginTop: 10, padding: 0, gap: 12 }}>
+                  <div className="cst-panel__field">
+                    <span className="cst-panel__field-label">Limit per OCC/Claim</span>
+                    <input className="cst-panel-input" placeholder="inherits from primary layer"
+                      value={row.limitOcc} onChange={e => patchRow(row.name, { limitOcc: e.target.value })} />
+                  </div>
+                  <div className="cst-panel__field">
+                    <span className="cst-panel__field-label">Aggregated Limit</span>
+                    <input className="cst-panel-input" placeholder="inherits from primary layer"
+                      value={row.limitAgg} onChange={e => patchRow(row.name, { limitAgg: e.target.value })} />
+                  </div>
+                  <div className="cst-panel__field">
+                    <span className="cst-panel__field-label">Deductible</span>
+                    <input className="cst-panel-input" value="From primary layer" disabled />
+                  </div>
+                  <button className="ls-action-btn ls-action-btn--delete" style={{ marginTop: 4 }}
+                    onClick={() => { patchRow(row.name, { hasConditions: false, limitOcc: "", limitAgg: "" }); setExpanded(null); }}>
+                    Remove own conditions
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="drawer__footer">
+          <button className="btn btn--primary" onClick={() => {
+            const next = {};
+            rows.forEach(r => { next[r.name] = { included: r.included, hasConditions: r.hasConditions, limitOcc: r.limitOcc, limitAgg: r.limitAgg }; });
+            onSave(next); onClose();
+          }}>Save</button>
+          <button className="btn btn--outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClaimAnalysisWithLayersScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit }) {
+  const [coverageOverridesByLayer, setCoverageOverridesByLayer] = useS({});
+  const [manageCovLayerIdx, setManageCovLayerIdx] = useS(null);
+  const [claimData, setClaimData] = useClaimAnalysisState();
+  const [editSettings, setEditSettings] = useS(false);
+  const [addYear, setAddYear] = useS(false);
+  const [claimRowExpanded, setClaimRowExpanded] = useS(true);
+  const [showStructureChart, setShowStructureChart] = useS(false);
+
+  const years = claimData.years;
+  const totals = years.reduce((acc, y) => {
+    acc.exposure += Number(y.exposure) || 0;
+    acc.numberOfClaims += Number(y.numberOfClaims) || 0;
+    acc.paidClaim += Number(y.paidClaim) || 0;
+    acc.outstandingReserve += Number(y.outstandingReserve) || 0;
+    return acc;
+  }, { exposure: 0, numberOfClaims: 0, paidClaim: 0, outstandingReserve: 0 });
+
+  const addClaimYear = (row) => setClaimData(d => ({ ...d, years: [...d.years, { id: "y" + Date.now(), ...row }] }));
+  const deleteClaimYear = (id) => setClaimData(d => ({ ...d, years: d.years.filter(y => y.id !== id) }));
+  const mockUpload = () => addClaimYear({
+    year: (years[years.length - 1]?.year || 2022) + 1,
+    exposure: "14200000", numberOfClaims: 10, paidClaim: "670000", outstandingReserve: "80000",
+  });
+
+  return (
+    <div>
+      <div className="main__title"><span>Program Structure + Claim Analysis</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 24 }}>
+        Preview: Claim Analysis / Burning Cost lives inside the Primary Layer's row — it belongs to the program's baseline, not to any individual layer above it.
+      </p>
+
+      {/* ---- Program Structure (new design), Claim Analysis as an accordion row on Primary ---- */}
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        <div className="ls-section" style={{ flex: 1 }}>
+          <div className="ls-section__header">
+            <h2 className="ls-section__title">Program Structure</h2>
+            <button className="ls-action-btn" title={showStructureChart ? "Hide Structure Chart" : "Show Structure Chart"}
+              onClick={() => setShowStructureChart(v => !v)}>
+              <i className="fa-solid fa-chart-column" /> Structure Chart <i className={`fa-solid fa-chevron-${showStructureChart ? "up" : "down"}`} style={{ fontSize: 9, marginLeft: 2 }} />
+            </button>
+          </div>
+          <table className="grid-tbl grid-tbl--fixed">
+            <thead>
+              <tr className="grid-tbl__group-row">
+                <th colSpan={2}>Program Structure</th>
+                <th colSpan={3}>Conditions</th>
+              </tr>
+              <tr className="grid-tbl__col-header-row">
+                <th style={{ width: "26%" }}>Structure</th>
+                <th style={{ width: "22%" }}>Coverages</th>
+                <th style={{ width: "14%" }}>Attachment</th>
+                <th style={{ width: "17%" }}>Limit per OCC/Claim</th>
+                <th style={{ width: "21%" }}>Aggregated Limit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {layers.map((layer, idx) => {
+                const isPrimary = layer.type === "Primary";
+                const covOverrides = coverageOverridesByLayer[layer.id] || {};
+                const totalCoverages = layer.coverages.length;
+                const includedCoverages = layer.coverages.filter(c => covOverrides[c.name]?.included ?? c.included).length;
+                const coverageExceptions = layer.coverages.filter(c => covOverrides[c.name]?.hasConditions).length;
+                return (
+                <F key={layer.id}>
+                <tr className={isPrimary && idx === activeLayerIdx ? "ls-row--linked-top" : ""}>
+                  <td>
+                    <div className="ls-structure-cell">
+                      <i className="fa-solid fa-layer-group ls-structure-cell__icon" />
+                      <div>
+                        <div>
+                          <span className="t-strong">{layer.name}</span>{" "}
+                          <span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()} ls-type-badge--plain`}>{layer.type}</span>
+                        </div>
+                        {layer.product && <div className="t-muted" style={{ fontSize: 11 }}>{layer.product}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div>
+                      <div className="rate-chip" style={{ display: "inline-flex", padding: "4px 10px", gap: 6, cursor: "default" }}>
+                        <span style={{ fontSize: 12 }}>{includedCoverages} of {totalCoverages} Coverages</span>
+                        <button className="ls-action-btn" title="Manage coverages" onClick={() => setManageCovLayerIdx(idx)}>
+                          <i className="fa-solid fa-pencil" />
+                        </button>
+                        {layers.length > 1 && (
+                          <button className="ls-action-btn ls-action-btn--delete" title="Delete layer" onClick={() => onDelete(idx)}>
+                            <i className="fa-regular fa-trash-can" />
+                          </button>
+                        )}
+                      </div>
+                      {coverageExceptions > 0 && (
+                        <div className="ls-coverages-badge__exceptions">{coverageExceptions} exception{coverageExceptions > 1 ? "s" : ""}</div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="t-mono">{isPrimary ? "—" : fmtEUR(layer.attachmentPoint)}</td>
+                  <td className="t-mono">{fmtEUR(layer.limit)}</td>
+                  <td className="t-mono">
+                    <div className="ls-actions" style={{ justifyContent: "space-between" }}>
+                      <span>{fmtEUR(layer.limit)}</span>
+                      <button className="ls-action-btn" title="Edit layer" onClick={() => onEdit(idx)}>
+                        <i className="fa-solid fa-pencil" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {isPrimary && idx === activeLayerIdx && (
+                <tr className="claim-analysis-row ls-row--linked-bottom">
+                  <td colSpan={5} className="claim-analysis-cell">
+                    <div className="claim-analysis-segment__header" onClick={() => setClaimRowExpanded(v => !v)}>
+                      <div className="claim-analysis-segment__title">
+                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "up" : "down"}`} style={{ fontSize: 10 }} />
+                        <i className="fa-solid fa-file-invoice-dollar" />
+                        <span>Claim Analysis / Burning Cost</span>
+                        <span className="claim-analysis-segment__hint">— baseline for {layer.name}, applies program-wide</span>
+                      </div>
+                      <div className="claim-analysis-segment__controls">
+                        <div className="ls-actions">
+                          <button className="ls-action-btn" title="Edit Claim Analysis / Burning Cost" onClick={(e) => { e.stopPropagation(); setEditSettings(true); }}>
+                            <i className="fa-solid fa-pencil" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {claimRowExpanded && (
+                      <div className="claim-analysis-segment__body">
+                        <div className="acc-field-grid">
+                          <div className="acc-field"><span className="acc-field__label">Limit OCC</span><span className="acc-field__value">{fmtEUR(claimData.limits.limitOcc)}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Limit AGG</span><span className="acc-field__value">{fmtEUR(claimData.limits.limitAgg)}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Deductible OCC</span><span className="acc-field__value">{fmtEUR(claimData.limits.deductibleOcc)}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Quality of Claim History</span><span className="acc-field__value">{claimData.settings.qualityOfClaimHistory}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Claim Currency</span><span className="acc-field__value">{claimData.settings.claimCurrency}</span></div>
+
+                          <div className="acc-field"><span className="acc-field__label">Deductible AGG</span><span className="acc-field__value">{fmtEUR(claimData.limits.deductibleAgg)}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Deductible OCC Type</span><span className="acc-field__value">{claimData.limits.deductibleOccType}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Development Type</span><span className="acc-field__value">{claimData.settings.developmentType}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Inflation Type</span><span className="acc-field__value">{claimData.settings.inflationType}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Data Cut-off Date</span><span className="acc-field__value">{claimData.settings.dataCutOffDate}</span></div>
+
+                          <div className="acc-field"><span className="acc-field__label">Superimposed Inflation</span><span className="acc-field__value">{claimData.settings.superimposedInflation} %</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Exposure Degression Type</span><span className="acc-field__value">{claimData.settings.exposureDegressionType}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Inflation Country</span><span className="acc-field__value">{claimData.settings.inflationCountry}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Type of Exposure</span><span className="acc-field__value">{claimData.settings.typeOfExposure}</span></div>
+                          <div className="acc-field"><span className="acc-field__label">Exposure Inflation Type</span><span className="acc-field__value">{claimData.settings.exposureInflationType}</span></div>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                )}
+                </F>
+                );
+              })}
+            </tbody>
+          </table>
+          <button className="btn-add-row" onClick={onAdd}>
+            <i className="fa-solid fa-plus" /> Add Layer
+          </button>
+        </div>
+        {showStructureChart && <StructureChart layers={layers} />}
+      </div>
+
+      {manageCovLayerIdx != null && (
+        <ManageCoveragesDrawer
+          open={manageCovLayerIdx != null}
+          layer={layers[manageCovLayerIdx]}
+          overrides={coverageOverridesByLayer[layers[manageCovLayerIdx]?.id]}
+          onClose={() => setManageCovLayerIdx(null)}
+          onSave={(next) => setCoverageOverridesByLayer(prev => ({ ...prev, [layers[manageCovLayerIdx].id]: next }))}
+        />
+      )}
+
+      {editSettings && (
+        <div className="drawer-overlay" onClick={() => setEditSettings(false)}>
+          <div className="drawer" onClick={e => e.stopPropagation()}>
+            <div className="drawer__header">
+              <div className="drawer__title">Edit Settings — Claim Analysis / Burning Cost</div>
+              <button className="drawer__close" onClick={() => setEditSettings(false)}><i className="fa-solid fa-xmark" /></button>
+            </div>
+            <div className="drawer__body">
+              <div className="cst-panel__body cst-panel__body--grid">
+                {Object.entries({
+                  qualityOfClaimHistory: "Quality of Claim History", developmentType: "Development Type",
+                  superimposedInflation: "Superimposed Inflation (%)", claimCurrency: "Claim Currency",
+                  exposureDegressionType: "Exposure Degression Type", inflationCountry: "Inflation Country",
+                  inflationType: "Inflation Type", dataCutOffDate: "Data Cut-off Date",
+                  typeOfExposure: "Type of Exposure", exposureInflationType: "Exposure Inflation Type",
+                }).map(([key, label]) => (
+                  <div className="cst-panel__field" key={key}>
+                    <span className="cst-panel__field-label">{label}</span>
+                    <input className="cst-panel-input" value={claimData.settings[key]}
+                      onChange={e => setClaimData(d => ({ ...d, settings: { ...d.settings, [key]: e.target.value } }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="drawer__footer">
+              <button className="btn btn--primary" onClick={() => setEditSettings(false)}>Save</button>
+              <button className="btn btn--outline" onClick={() => setEditSettings(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addYear && (
+        <ClaimYearDrawer open={addYear} onClose={() => setAddYear(false)} onSave={addClaimYear} nextYear={(years[years.length - 1]?.year || 2022) + 1} />
+      )}
+    </div>
+  );
+}
+
+function ClaimYearDrawer({ open, onClose, onSave, nextYear }) {
+  const [row, setRow] = useS({ year: nextYear, exposure: "", numberOfClaims: "", paidClaim: "", outstandingReserve: "" });
+  if (!open) return null;
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer__header">
+          <div className="drawer__title">Add Claim Year</div>
+          <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+        </div>
+        <div className="drawer__body">
+          <div className="cst-panel__body">
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Year</span>
+              <input className="cst-panel-input" type="number" value={row.year} onChange={e => setRow(r => ({ ...r, year: Number(e.target.value) }))} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Exposure / Turnover</span>
+              <EuroInput value={row.exposure} onChange={v => setRow(r => ({ ...r, exposure: v }))} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Number of Claims</span>
+              <input className="cst-panel-input" type="number" value={row.numberOfClaims} onChange={e => setRow(r => ({ ...r, numberOfClaims: e.target.value }))} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Paid Claim</span>
+              <EuroInput value={row.paidClaim} onChange={v => setRow(r => ({ ...r, paidClaim: v }))} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Outstanding Claim Reserve</span>
+              <EuroInput value={row.outstandingReserve} onChange={v => setRow(r => ({ ...r, outstandingReserve: v }))} />
+            </div>
+          </div>
+        </div>
+        <div className="drawer__footer">
+          <button className="btn btn--primary" onClick={() => { onSave(row); onClose(); }}>Save</button>
+          <button className="btn btn--outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}

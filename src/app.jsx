@@ -147,7 +147,7 @@ function makeInitialLayers() {
 // Variant A: Layers Settings as setup step (after General Data)
 const NAV_ITEMS_A = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
-  { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
+  { id: "layers-settings",    label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", hidden: true, children: [
     { id: "layers-settings",      label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "layers-coverages",     label: "Layers + Coverages",  icon: "fa-solid fa-shield-halved" },
     { id: "coverage-spreading",   label: "Coverage (Cyber)",    icon: "fa-solid fa-chart-bar" },
@@ -156,6 +156,7 @@ const NAV_ITEMS_A = [
     { id: "coverage-spreading-v4", label: "Coverage V4",         icon: "fa-solid fa-grip-vertical" },
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
+  { id: "claim-analysis",     label: "Program Structure + Claim Analysis", icon: "fa-solid fa-file-invoice-dollar", status: "" },
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
@@ -169,7 +170,7 @@ const NAV_ITEMS_A = [
 const NAV_ITEMS_B = [
   { id: "general-data",       label: "General Data",        icon: "fa-solid fa-id-card",       status: "done" },
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "done" },
-  { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", children: [
+  { id: "layers",             label: "Layers",              icon: "fa-solid fa-layer-group",   status: "", hidden: true, children: [
     { id: "layers",               label: "Layer Structure",     icon: "fa-solid fa-table-list" },
     { id: "layers-coverages",     label: "Layers + Coverages",  icon: "fa-solid fa-shield-halved" },
     { id: "layer-overview",       label: "Layer Overview",      icon: "fa-solid fa-table-cells", hidden: true },
@@ -177,6 +178,7 @@ const NAV_ITEMS_B = [
     { id: "coverage-spreading-v3", label: "Coverage V3",         icon: "fa-solid fa-toggle-on" },
     { id: "coverage-spreading-v4", label: "Coverage V4",         icon: "fa-solid fa-grip-vertical" },
   ]},
+  { id: "claim-analysis",     label: "Program Structure + Claim Analysis", icon: "fa-solid fa-file-invoice-dollar", status: "" },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
     { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
@@ -532,6 +534,7 @@ function App() {
       case "layers-settings":    return <LayersSettingsScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers-coverages":   return <LayersCoveragesWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
+      case "claim-analysis":     return <ClaimAnalysisWithLayersScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layer-overview":     return <LayerOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;

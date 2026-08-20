@@ -503,9 +503,10 @@ body {
 
 /* ========= TABLES (grid-tbl floating rows) ========= */
 .grid-tbl {
-  width: 100%; border-collapse: separate; border-spacing: 0 4px;
+  width: 100%; border-collapse: separate; border-spacing: 0 10px;
   background: transparent; table-layout: auto;
 }
+.grid-tbl--fixed { table-layout: fixed; }
 .grid-tbl thead th {
   background: var(--bg-sunk);
   font-size: 12px; font-weight: 600; color: var(--fg);
@@ -873,6 +874,11 @@ body {
 }
 .ls-section__title { font-size: 18px; font-weight: 600; margin: 0; color: var(--fg); }
 
+/* Active layer row highlight, shared with the Claim Analysis segment below the table */
+tr.ls-row--active td { background: var(--accent-soft); }
+tr.ls-row--active td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+div.ls-row--active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+
 /* Type badge */
 .ls-type-badge {
   font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
@@ -880,6 +886,7 @@ body {
 }
 .ls-type-badge--primary { background: var(--accent-soft); color: var(--accent-ink); }
 .ls-type-badge--excess { background: #eef4ff; color: #2563eb; }
+.ls-type-badge--plain { font-size: 11px; font-weight: 600; text-transform: lowercase; padding: 0; border-radius: 0; background: none; }
 
 /* Follow Form badge */
 .follow-form-badge {
@@ -1481,6 +1488,7 @@ body {
 .cst-panel__cov { font-size: 15px; font-weight: 700; color: var(--fg); line-height: 1.3; }
 .cst-panel__range { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); margin-top: 2px; }
 .cst-panel__body { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.cst-panel__body--grid { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 20px; row-gap: 18px; padding: 0; flex: initial; }
 .cst-panel__footer {
   padding: 16px 24px; border-top: 1px solid var(--border);
   display: flex; gap: 10px;
@@ -1938,6 +1946,129 @@ body {
 }
 .cst-input:focus { border-color: var(--accent); }
 .cst-input::placeholder { color: var(--fg-faint); }
+
+/* Claim Analysis collapsible segment, rendered as a full-width second row under the Primary layer's row, unified with it visually (no accent highlight, shared border/radius, no gap between the two rows) */
+tr.ls-row--linked-top td {
+  border-bottom: none;
+  box-shadow: none;
+}
+tr.ls-row--linked-top td:first-child { border-radius: 4px 0 0 0; }
+tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
+.grid-tbl tbody td.claim-analysis-cell {
+  position: relative;
+  padding: 0;
+  box-shadow: none;
+  border: 1px solid var(--border-soft);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: var(--bg-elev);
+  transform: translateY(-10px);
+}
+.grid-tbl tbody td.claim-analysis-cell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 10px;
+  border-top: 1px dotted var(--border-strong);
+}
+.claim-analysis-segment__header {
+  display: grid;
+  grid-template-columns: 90% 10%;
+  align-items: center;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.claim-analysis-segment__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-left: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.claim-analysis-segment__header i.fa-file-invoice-dollar { color: var(--accent); font-size: 12px; }
+.claim-analysis-segment__hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.claim-analysis-segment__controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-right: 10px;
+  color: var(--fg-faint);
+}
+.claim-analysis-segment__body {
+  padding: 16px 14px 18px;
+}
+.acc-info-bar__edit {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; padding: 4px 6px; border-radius: 4px;
+  color: var(--fg-faint);
+  transition: color 0.15s, background 0.15s;
+}
+.acc-info-bar__edit:hover { color: var(--accent); background: var(--accent-soft); }
+
+.acc-field-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  column-gap: 24px;
+  row-gap: 18px;
+}
+.acc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.acc-field__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.acc-field__value {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+}
+
+/* Grouped two-tier header row on the Program Structure table */
+.grid-tbl thead tr.grid-tbl__group-row th {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fg);
+  background: oklch(0.935 0.006 240);
+  letter-spacing: 0.03em;
+  padding: 6px 10px 4px;
+  border-bottom: none;
+}
+.grid-tbl thead tr.grid-tbl__col-header-row th {
+  transform: translateY(-10px);
+}
+
+/* Structure cell: icon beside name/badge/product text */
+.ls-structure-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ls-structure-cell__icon {
+  color: var(--fg-faint);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.ls-coverages-badge__exceptions {
+  font-size: 11px;
+  color: var(--warn, #b45309);
+}
 
 /* Layer-count badge on tree rows */
 .cst-layer-count {
