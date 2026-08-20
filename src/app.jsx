@@ -157,6 +157,7 @@ const NAV_ITEMS_A = [
     { id: "layered-coverage",     label: "Coverage Matrix",     icon: "fa-solid fa-table-cells" },
   ]},
   { id: "claim-analysis",     label: "Program Structure + Claim Analysis", icon: "fa-solid fa-file-invoice-dollar", status: "" },
+  { id: "claim-analysis-full", label: "Claim Analysis (Full, Tabbed)", icon: "fa-solid fa-table-list", status: "" },
   { id: "program-coverage",   label: "Program Coverage",    icon: "fa-solid fa-file-shield",   status: "" },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
@@ -179,6 +180,7 @@ const NAV_ITEMS_B = [
     { id: "coverage-spreading-v4", label: "Coverage V4",         icon: "fa-solid fa-grip-vertical" },
   ]},
   { id: "claim-analysis",     label: "Program Structure + Claim Analysis", icon: "fa-solid fa-file-invoice-dollar", status: "" },
+  { id: "claim-analysis-full", label: "Claim Analysis (Full, Tabbed)", icon: "fa-solid fa-table-list", status: "" },
   { id: "calc-adjustment",    label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", status: "", children: [
     { id: "premium-result",       label: "Premium Result",      icon: "fa-solid fa-chart-line" },
     { id: "loading-discounts",    label: "Loading / Discounts", icon: "fa-solid fa-tag" },
@@ -535,6 +537,7 @@ function App() {
       case "layers":             return <LayersWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layers-coverages":   return <LayersCoveragesWorkflowScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "claim-analysis":     return <ClaimAnalysisWithLayersScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
+      case "claim-analysis-full": return <ClaimAnalysisFullScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} onAdd={() => setShowAddDrawer(true)} onCopy={setCopyTarget} onDelete={setDeleteTarget} onEdit={setEditTarget} />;
       case "layer-overview":     return <LayerOverviewScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "layered-coverage":   return <LayeredCoverageScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;
       case "coverage-spreading":  return <CoverageSpreadingScreen layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={setActiveLayerIdx} />;

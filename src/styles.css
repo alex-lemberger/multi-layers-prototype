@@ -1964,6 +1964,7 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
   background: var(--bg-elev);
   transform: translateY(-10px);
 }
+.grid-tbl tbody tr:hover td.claim-analysis-cell { background: var(--bg-elev); }
 .grid-tbl tbody td.claim-analysis-cell::before {
   content: "";
   position: absolute;
@@ -3590,3 +3591,56 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
 .ct-check--dim {
   opacity: 0.4;
 }
+
+/* ---- Claim Analysis (Full, Tabbed) — tabs inside the Primary-layer collapsible ---- */
+.ca-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 16px;
+}
+.ca-tab {
+  background: none; border: none; cursor: pointer;
+  padding: 8px 14px 10px;
+  font-size: 12px; font-weight: 600; color: var(--fg-muted);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ca-tab:hover { color: var(--fg); }
+.ca-tab--active { color: var(--accent); border-bottom-color: var(--accent); }
+.ca-tab__badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: 10px; font-weight: 600; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent);
+}
+
+.ca-years-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ca-years-tbl th {
+  text-align: left; font-size: 11px; font-weight: 600; color: var(--fg-muted);
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 0.02em;
+}
+.ca-years-tbl td {
+  padding: 8px 10px; border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-mono); color: var(--fg);
+}
+.ca-years-tbl tbody tr:hover td { background: var(--bg-stripe); }
+.ca-years-tbl tfoot td {
+  padding: 8px 10px; font-weight: 600; color: var(--fg);
+  border-top: 2px solid var(--border-strong); border-bottom: none;
+}
+.ca-years-tbl td.ca-years-tbl__actions { font-family: var(--font-base, inherit); white-space: nowrap; }
+.ca-years-tbl__incurred { color: var(--accent); font-weight: 600; }
+
+.ca-claims-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ca-claims-toolbar__actions { display: flex; gap: 8px; }
+
+.ca-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 32px 16px; text-align: center;
+  color: var(--fg-muted); font-size: 13px;
+}
+.ca-empty i { font-size: 22px; color: var(--fg-faint); }

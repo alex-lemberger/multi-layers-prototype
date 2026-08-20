@@ -5434,14 +5434,17 @@ function ClaimAnalysisWithLayersScreen({ layers, activeLayerIdx, onLayerChange, 
   );
 }
 
-function ClaimYearDrawer({ open, onClose, onSave, nextYear }) {
-  const [row, setRow] = useS({ year: nextYear, exposure: "", numberOfClaims: "", paidClaim: "", outstandingReserve: "" });
+function ClaimYearDrawer({ open, onClose, onSave, nextYear, initialRow, title }) {
+  const [row, setRow] = useS(() => initialRow || { year: nextYear, exposure: "", numberOfClaims: "", paidClaim: "", outstandingReserve: "" });
+  useE(() => {
+    if (open) setRow(initialRow || { year: nextYear, exposure: "", numberOfClaims: "", paidClaim: "", outstandingReserve: "" });
+  }, [open, initialRow]);
   if (!open) return null;
   return (
     <div className="drawer-overlay" onClick={onClose}>
       <div className="drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer__header">
-          <div className="drawer__title">Add Claim Year</div>
+          <div className="drawer__title">{title || "Add Claim Year"}</div>
           <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
         </div>
         <div className="drawer__body">
@@ -5473,6 +5476,388 @@ function ClaimYearDrawer({ open, onClose, onSave, nextYear }) {
           <button className="btn btn--outline" onClick={onClose}>Cancel</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ================================================================
+// ---- Program Structure + Claim Analysis — FULL variant, tabbed collapsible ----
+// Pragmatic experiment (2026-08-20): same Primary-layer-anchored placement as
+// ClaimAnalysisWithLayersScreen, but the collapsible hosts all 3 cards from the
+// original Figma Make prototype (Settings / Limits & Deductibles / Claim Overview
+// & Information — incl. the years-history table with Incurred Claim, add/edit/
+// delete, Excel upload) via tabs instead of one flattened read-only field grid.
+// Standalone-first: no LOB claim-source gating here yet — that's still an open
+// BA question (see memory claim_analysis_layer_sync_premise). Shares the same
+// claim-analysis localStorage state as the original screen.
+// ================================================================
+
+function EditLimitsDrawer({ open, onClose, limits, onSave }) {
+  const [draft, setDraft] = useS(limits);
+  useE(() => { if (open) setDraft(limits); }, [open]);
+  if (!open) return null;
+  const patch = (key, v) => setDraft(d => ({ ...d, [key]: v }));
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer__header">
+          <div className="drawer__title">Edit Limits & Deductibles</div>
+          <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+        </div>
+        <div className="drawer__body">
+          <div className="cst-panel__body">
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Limit per OCC/Claim</span>
+              <EuroInput value={draft.limitOcc} onChange={v => patch("limitOcc", v)} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Aggregated Limit</span>
+              <EuroInput value={draft.limitAgg} onChange={v => patch("limitAgg", v)} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Deductible per OCC/Claim</span>
+              <EuroInput value={draft.deductibleOcc} onChange={v => patch("deductibleOcc", v)} />
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Deductible Type</span>
+              <select className="cst-panel-input" value={draft.deductibleOccType} onChange={e => patch("deductibleOccType", e.target.value)}>
+                <option>Per Claim</option>
+                <option>Per Occurrence</option>
+              </select>
+            </div>
+            <div className="cst-panel__field">
+              <span className="cst-panel__field-label">Deductible Aggregated</span>
+              <EuroInput value={draft.deductibleAgg} onChange={v => patch("deductibleAgg", v)} />
+            </div>
+          </div>
+        </div>
+        <div className="drawer__footer">
+          <button className="btn btn--primary" onClick={() => { onSave(draft); onClose(); }}>Save</button>
+          <button className="btn btn--outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CA_TABS = [
+  { id: "settings", label: "Settings" },
+  { id: "limits", label: "Limits & Deductibles" },
+  { id: "claims", label: "Claim Overview & Information" },
+];
+
+function ClaimAnalysisFullScreen({ layers, activeLayerIdx, onLayerChange, onAdd, onCopy, onDelete, onEdit }) {
+  const [coverageOverridesByLayer, setCoverageOverridesByLayer] = useS({});
+  const [manageCovLayerIdx, setManageCovLayerIdx] = useS(null);
+  const [claimData, setClaimData] = useClaimAnalysisState();
+  const [claimRowExpanded, setClaimRowExpanded] = useS(false);
+  const [showStructureChart, setShowStructureChart] = useS(false);
+  const [activeTab, setActiveTab] = useS("claims");
+  const [editSettings, setEditSettings] = useS(false);
+  const [editLimits, setEditLimits] = useS(false);
+  const [yearDrawer, setYearDrawer] = useS(null); // { mode: "add" | "edit", row? }
+
+  const years = claimData.years;
+  const totals = years.reduce((acc, y) => {
+    acc.exposure += Number(y.exposure) || 0;
+    acc.numberOfClaims += Number(y.numberOfClaims) || 0;
+    acc.paidClaim += Number(y.paidClaim) || 0;
+    acc.outstandingReserve += Number(y.outstandingReserve) || 0;
+    return acc;
+  }, { exposure: 0, numberOfClaims: 0, paidClaim: 0, outstandingReserve: 0 });
+  const incurred = (y) => (Number(y.paidClaim) || 0) + (Number(y.outstandingReserve) || 0);
+  const totalIncurred = totals.paidClaim + totals.outstandingReserve;
+
+  const addClaimYear = (row) => setClaimData(d => ({ ...d, years: [...d.years, { id: "y" + Date.now(), ...row }].sort((a, b) => a.year - b.year) }));
+  const updateClaimYear = (id, row) => setClaimData(d => ({ ...d, years: d.years.map(y => y.id === id ? { ...row, id } : y) }));
+  const deleteClaimYear = (id) => setClaimData(d => ({ ...d, years: d.years.filter(y => y.id !== id) }));
+  const mockUpload = () => addClaimYear({
+    year: (years[years.length - 1]?.year || 2022) + 1,
+    exposure: "14200000", numberOfClaims: 10, paidClaim: "670000", outstandingReserve: "80000",
+  });
+
+  return (
+    <div>
+      <div className="main__title"><span>Program Structure + Claim Analysis (Full)</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 24 }}>
+        Pragmatic experiment — same Primary-layer placement as the other Claim Analysis preview, but the collapsible surfaces all 3 original cards (Settings, Limits &amp; Deductibles, Claim Overview &amp; Information) via tabs instead of one flattened field grid. No layer-scoping decided yet — this stays program-wide.
+      </p>
+
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        <div className="ls-section" style={{ flex: 1 }}>
+          <div className="ls-section__header">
+            <h2 className="ls-section__title">Program Structure</h2>
+            <button className="ls-action-btn" title={showStructureChart ? "Hide Structure Chart" : "Show Structure Chart"}
+              onClick={() => setShowStructureChart(v => !v)}>
+              <i className="fa-solid fa-chart-column" /> Structure Chart <i className={`fa-solid fa-chevron-${showStructureChart ? "up" : "down"}`} style={{ fontSize: 9, marginLeft: 2 }} />
+            </button>
+          </div>
+          <table className="grid-tbl grid-tbl--fixed">
+            <thead>
+              <tr className="grid-tbl__group-row">
+                <th colSpan={2}>Program Structure</th>
+                <th colSpan={3}>Conditions</th>
+              </tr>
+              <tr className="grid-tbl__col-header-row">
+                <th style={{ width: "26%" }}>Structure</th>
+                <th style={{ width: "22%" }}>Coverages</th>
+                <th style={{ width: "14%" }}>Attachment</th>
+                <th style={{ width: "17%" }}>Limit per OCC/Claim</th>
+                <th style={{ width: "21%" }}>Aggregated Limit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {layers.map((layer, idx) => {
+                const isPrimary = layer.type === "Primary";
+                const covOverrides = coverageOverridesByLayer[layer.id] || {};
+                const totalCoverages = layer.coverages.length;
+                const includedCoverages = layer.coverages.filter(c => covOverrides[c.name]?.included ?? c.included).length;
+                const coverageExceptions = layer.coverages.filter(c => covOverrides[c.name]?.hasConditions).length;
+                return (
+                <F key={layer.id}>
+                <tr className={isPrimary && idx === activeLayerIdx ? "ls-row--linked-top" : ""}>
+                  <td>
+                    <div className="ls-structure-cell">
+                      <i className="fa-solid fa-layer-group ls-structure-cell__icon" />
+                      <div>
+                        <div>
+                          <span className="t-strong">{layer.name}</span>{" "}
+                          <span className={`ls-type-badge ls-type-badge--${layer.type.toLowerCase()} ls-type-badge--plain`}>{layer.type}</span>
+                        </div>
+                        {layer.product && <div className="t-muted" style={{ fontSize: 11 }}>{layer.product}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div>
+                      <div className="rate-chip" style={{ display: "inline-flex", padding: "4px 10px", gap: 6, cursor: "default" }}>
+                        <span style={{ fontSize: 12 }}>{includedCoverages} of {totalCoverages} Coverages</span>
+                        <button className="ls-action-btn" title="Manage coverages" onClick={() => setManageCovLayerIdx(idx)}>
+                          <i className="fa-solid fa-pencil" />
+                        </button>
+                        {layers.length > 1 && (
+                          <button className="ls-action-btn ls-action-btn--delete" title="Delete layer" onClick={() => onDelete(idx)}>
+                            <i className="fa-regular fa-trash-can" />
+                          </button>
+                        )}
+                      </div>
+                      {coverageExceptions > 0 && (
+                        <div className="ls-coverages-badge__exceptions">{coverageExceptions} exception{coverageExceptions > 1 ? "s" : ""}</div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="t-mono">{isPrimary ? "—" : fmtEUR(layer.attachmentPoint)}</td>
+                  <td className="t-mono">{fmtEUR(layer.limit)}</td>
+                  <td className="t-mono">
+                    <div className="ls-actions" style={{ justifyContent: "space-between" }}>
+                      <span>{fmtEUR(layer.limit)}</span>
+                      <button className="ls-action-btn" title="Edit layer" onClick={() => onEdit(idx)}>
+                        <i className="fa-solid fa-pencil" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {isPrimary && idx === activeLayerIdx && (
+                <tr className="claim-analysis-row ls-row--linked-bottom">
+                  <td colSpan={5} className="claim-analysis-cell">
+                    <div className="claim-analysis-segment__header" onClick={() => setClaimRowExpanded(v => !v)}>
+                      <div className="claim-analysis-segment__title">
+                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "up" : "down"}`} style={{ fontSize: 10 }} />
+                        <i className="fa-solid fa-file-invoice-dollar" />
+                        <span>Claim Analysis / Burning Cost</span>
+                        <span className="claim-analysis-segment__hint">— baseline for {layer.name}, applies program-wide</span>
+                      </div>
+                    </div>
+                    {claimRowExpanded && (
+                      <div className="claim-analysis-segment__body">
+                        <div className="ca-tabs">
+                          {CA_TABS.map(t => (
+                            <button key={t.id} className={`ca-tab${activeTab === t.id ? " ca-tab--active" : ""}`} onClick={() => setActiveTab(t.id)}>
+                              {t.label}{t.id === "claims" && years.length > 0 && <span className="ca-tab__badge">{years.length}</span>}
+                            </button>
+                          ))}
+                        </div>
+
+                        {activeTab === "settings" && (
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                              <button className="ls-action-btn" title="Edit Settings" onClick={() => setEditSettings(true)}>
+                                <i className="fa-solid fa-pencil" />
+                              </button>
+                            </div>
+                            <div className="acc-field-grid">
+                              <div className="acc-field"><span className="acc-field__label">Quality of Claim History</span><span className="acc-field__value">{claimData.settings.qualityOfClaimHistory}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Development Type</span><span className="acc-field__value">{claimData.settings.developmentType}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Superimposed Inflation</span><span className="acc-field__value">{claimData.settings.superimposedInflation} %</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Claim Currency</span><span className="acc-field__value">{claimData.settings.claimCurrency}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Exposure Degression Type</span><span className="acc-field__value">{claimData.settings.exposureDegressionType}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Inflation Country</span><span className="acc-field__value">{claimData.settings.inflationCountry}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Inflation Type</span><span className="acc-field__value">{claimData.settings.inflationType}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Data Cut-off Date</span><span className="acc-field__value">{claimData.settings.dataCutOffDate}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Type of Exposure</span><span className="acc-field__value">{claimData.settings.typeOfExposure}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Exposure Inflation Type</span><span className="acc-field__value">{claimData.settings.exposureInflationType}</span></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeTab === "limits" && (
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                              <button className="ls-action-btn" title="Edit Limits & Deductibles" onClick={() => setEditLimits(true)}>
+                                <i className="fa-solid fa-pencil" />
+                              </button>
+                            </div>
+                            <div className="acc-field-grid">
+                              <div className="acc-field"><span className="acc-field__label">Limit per OCC/Claim</span><span className="acc-field__value">{fmtEUR(claimData.limits.limitOcc)}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Aggregated Limit</span><span className="acc-field__value">{fmtEUR(claimData.limits.limitAgg)}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Deductible per OCC/Claim</span><span className="acc-field__value">{fmtEUR(claimData.limits.deductibleOcc)}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Deductible Type</span><span className="acc-field__value">{claimData.limits.deductibleOccType}</span></div>
+                              <div className="acc-field"><span className="acc-field__label">Deductible Aggregated</span><span className="acc-field__value">{fmtEUR(claimData.limits.deductibleAgg)}</span></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeTab === "claims" && (
+                          <div>
+                            <div className="ca-claims-toolbar">
+                              <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>Claim history, per underwriting year — applies program-wide.</span>
+                              <div className="ca-claims-toolbar__actions">
+                                <button className="btn btn--outline" style={{ padding: "6px 10px", fontSize: 12 }} onClick={mockUpload}>
+                                  <i className="fa-solid fa-file-arrow-up" /> Upload Excel Sheet
+                                </button>
+                                <button className="btn btn--primary" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => setYearDrawer({ mode: "add" })}>
+                                  <i className="fa-solid fa-plus" /> Add entry manually
+                                </button>
+                              </div>
+                            </div>
+                            {years.length === 0 ? (
+                              <div className="ca-empty">
+                                <i className="fa-regular fa-folder-open" />
+                                <div>No claims information available yet.</div>
+                                <button className="btn btn--primary" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => setYearDrawer({ mode: "add" })}>
+                                  <i className="fa-solid fa-plus" /> Add entry manually
+                                </button>
+                              </div>
+                            ) : (
+                              <table className="ca-years-tbl">
+                                <thead>
+                                  <tr>
+                                    <th>Year</th>
+                                    <th>Exposure</th>
+                                    <th>Number of Claims</th>
+                                    <th>Paid Claim</th>
+                                    <th>Outstanding Claim Reserve</th>
+                                    <th>Incurred Claim</th>
+                                    <th></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {years.map(y => (
+                                    <tr key={y.id}>
+                                      <td>{y.year}</td>
+                                      <td>{fmtEUR(y.exposure)}</td>
+                                      <td>{y.numberOfClaims}</td>
+                                      <td>{fmtEUR(y.paidClaim)}</td>
+                                      <td>{fmtEUR(y.outstandingReserve)}</td>
+                                      <td className="ca-years-tbl__incurred">{fmtEUR(incurred(y))}</td>
+                                      <td className="ca-years-tbl__actions">
+                                        <button className="ls-action-btn" title="Edit entry" onClick={() => setYearDrawer({ mode: "edit", row: y })}>
+                                          <i className="fa-solid fa-pencil" />
+                                        </button>
+                                        <button className="ls-action-btn ls-action-btn--delete" title="Delete entry" onClick={() => deleteClaimYear(y.id)}>
+                                          <i className="fa-regular fa-trash-can" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr>
+                                    <td>Total</td>
+                                    <td>{fmtEUR(totals.exposure)}</td>
+                                    <td>{totals.numberOfClaims}</td>
+                                    <td>{fmtEUR(totals.paidClaim)}</td>
+                                    <td>{fmtEUR(totals.outstandingReserve)}</td>
+                                    <td>{fmtEUR(totalIncurred)}</td>
+                                    <td></td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                )}
+                </F>
+                );
+              })}
+            </tbody>
+          </table>
+          <button className="btn-add-row" onClick={onAdd}>
+            <i className="fa-solid fa-plus" /> Add Layer
+          </button>
+        </div>
+        {showStructureChart && <StructureChart layers={layers} />}
+      </div>
+
+      {manageCovLayerIdx != null && (
+        <ManageCoveragesDrawer
+          open={manageCovLayerIdx != null}
+          layer={layers[manageCovLayerIdx]}
+          overrides={coverageOverridesByLayer[layers[manageCovLayerIdx]?.id]}
+          onClose={() => setManageCovLayerIdx(null)}
+          onSave={(next) => setCoverageOverridesByLayer(prev => ({ ...prev, [layers[manageCovLayerIdx].id]: next }))}
+        />
+      )}
+
+      {editSettings && (
+        <div className="drawer-overlay" onClick={() => setEditSettings(false)}>
+          <div className="drawer" onClick={e => e.stopPropagation()}>
+            <div className="drawer__header">
+              <div className="drawer__title">Edit Settings — Claim Analysis / Burning Cost</div>
+              <button className="drawer__close" onClick={() => setEditSettings(false)}><i className="fa-solid fa-xmark" /></button>
+            </div>
+            <div className="drawer__body">
+              <div className="cst-panel__body cst-panel__body--grid">
+                {Object.entries({
+                  qualityOfClaimHistory: "Quality of Claim History", developmentType: "Development Type",
+                  superimposedInflation: "Superimposed Inflation (%)", claimCurrency: "Claim Currency",
+                  exposureDegressionType: "Exposure Degression Type", inflationCountry: "Inflation Country",
+                  inflationType: "Inflation Type", dataCutOffDate: "Data Cut-off Date",
+                  typeOfExposure: "Type of Exposure", exposureInflationType: "Exposure Inflation Type",
+                }).map(([key, label]) => (
+                  <div className="cst-panel__field" key={key}>
+                    <span className="cst-panel__field-label">{label}</span>
+                    <input className="cst-panel-input" value={claimData.settings[key]}
+                      onChange={e => setClaimData(d => ({ ...d, settings: { ...d.settings, [key]: e.target.value } }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="drawer__footer">
+              <button className="btn btn--primary" onClick={() => setEditSettings(false)}>Save</button>
+              <button className="btn btn--outline" onClick={() => setEditSettings(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <EditLimitsDrawer open={editLimits} onClose={() => setEditLimits(false)} limits={claimData.limits}
+        onSave={(next) => setClaimData(d => ({ ...d, limits: next }))} />
+
+      {yearDrawer && (
+        <ClaimYearDrawer
+          open={!!yearDrawer}
+          onClose={() => setYearDrawer(null)}
+          title={yearDrawer.mode === "edit" ? "Edit Claim Year" : "Add Claim Year"}
+          initialRow={yearDrawer.mode === "edit" ? yearDrawer.row : undefined}
+          nextYear={(years[years.length - 1]?.year || 2022) + 1}
+          onSave={(row) => yearDrawer.mode === "edit" ? updateClaimYear(yearDrawer.row.id, row) : addClaimYear(row)}
+        />
+      )}
     </div>
   );
 }
