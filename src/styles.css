@@ -53,6 +53,7 @@ body {
   color: var(--fg);
   background: var(--bg-sunk);
   line-height: 1.5;
+  zoom: 1.15;
 }
 
 /* ========= LAYOUT ========= */
@@ -907,10 +908,11 @@ div.ls-row--active { background: var(--accent-soft); box-shadow: inset 3px 0 0 v
 /* Row actions */
 .ls-actions { display: flex; gap: 4px; }
 .ls-action-btn {
-  font-size: 14px; color: var(--fg-muted); background: none; border: none;
+  font-size: 14px; color: var(--accent); background: none; border: none;
   cursor: pointer; padding: 6px 8px; border-radius: 4px; transition: all 0.15s;
 }
-.ls-action-btn:hover { color: var(--accent); background: var(--accent-soft); }
+.ls-action-btn:hover { background: var(--accent-soft); }
+.ls-action-btn--delete { color: var(--fg-muted); }
 .ls-action-btn--delete:hover { color: var(--red); background: var(--red-soft); }
 
 /* Screen list (toggle checklist) */
@@ -2590,7 +2592,7 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
 .rate-chip__edit {
   background: none;
   border: none;
-  color: var(--fg-muted);
+  color: var(--accent);
   font-size: 12px;
   cursor: pointer;
   padding: 0;
@@ -3266,7 +3268,7 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--bg-elev);
-  color: var(--fg-muted); cursor: pointer; transition: all 0.15s;
+  color: var(--accent); cursor: pointer; transition: all 0.15s;
   flex-shrink: 0;
 }
 .csv3-edit-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
@@ -3445,7 +3447,7 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  color: var(--fg-muted);
+  color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
   font-size: 11px;
@@ -3644,3 +3646,12 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
   color: var(--fg-muted); font-size: 13px;
 }
 .ca-empty i { font-size: 22px; color: var(--fg-faint); }
+
+/* Square buttons and inputs everywhere, matching the Figma Make source (no rounded corners) */
+button,
+[class*="btn"],
+input,
+select,
+textarea {
+  border-radius: 0 !important;
+}

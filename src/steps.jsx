@@ -5334,7 +5334,7 @@ function ClaimAnalysisWithLayersScreen({ layers, activeLayerIdx, onLayerChange, 
                   <td colSpan={5} className="claim-analysis-cell">
                     <div className="claim-analysis-segment__header" onClick={() => setClaimRowExpanded(v => !v)}>
                       <div className="claim-analysis-segment__title">
-                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "up" : "down"}`} style={{ fontSize: 10 }} />
+                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "down" : "right"}`} style={{ fontSize: 10 }} />
                         <i className="fa-solid fa-file-invoice-dollar" />
                         <span>Claim Analysis / Burning Cost</span>
                         <span className="claim-analysis-segment__hint">— baseline for {layer.name}, applies program-wide</span>
@@ -5660,9 +5660,9 @@ function ClaimAnalysisFullScreen({ layers, activeLayerIdx, onLayerChange, onAdd,
                 {isPrimary && idx === activeLayerIdx && (
                 <tr className="claim-analysis-row ls-row--linked-bottom">
                   <td colSpan={5} className="claim-analysis-cell">
-                    <div className="claim-analysis-segment__header" onClick={() => setClaimRowExpanded(v => !v)}>
+                    <div className="claim-analysis-segment__header" onClick={() => setClaimRowExpanded(v => { const next = !v; if (next) setActiveTab("settings"); return next; })}>
                       <div className="claim-analysis-segment__title">
-                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "up" : "down"}`} style={{ fontSize: 10 }} />
+                        <i className={`fa-solid fa-chevron-${claimRowExpanded ? "down" : "right"}`} style={{ fontSize: 10 }} />
                         <i className="fa-solid fa-file-invoice-dollar" />
                         <span>Claim Analysis / Burning Cost</span>
                         <span className="claim-analysis-segment__hint">— baseline for {layer.name}, applies program-wide</span>
