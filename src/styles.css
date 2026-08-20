@@ -595,6 +595,7 @@ body {
 }
 .drawer__close:hover { color: var(--fg); background: var(--bg-sunk); }
 .drawer__body { flex: 1; padding: 24px; }
+.drawer__body .cst-panel__body { padding: 0; }
 .drawer__footer {
   padding: 16px 24px; border-top: 1px solid var(--border);
   display: flex; gap: 12px;
