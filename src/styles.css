@@ -2066,7 +2066,7 @@ tr.ls-row--linked-top td:last-child { border-radius: 0 4px 0 0; }
 .ls-structure-cell__icon {
   color: var(--fg-faint);
   font-size: 13px;
-  margin-top: 2px;
+  margin-top: 5px;
 }
 
 .ls-coverages-badge__exceptions {
