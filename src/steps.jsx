@@ -5249,7 +5249,7 @@ function ClaimAnalysisWithLayersScreen({ layers, activeLayerIdx, onLayerChange, 
 
   return (
     <div>
-      <div className="main__title"><span>Program Structure + Claim Analysis</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <div className="main__title"><span>Program Structure + Claim Analysis</span></div>
       <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 24 }}>
         Preview: Claim Analysis / Burning Cost lives inside the Primary Layer's row — it belongs to the program's baseline, not to any individual layer above it.
       </p>
