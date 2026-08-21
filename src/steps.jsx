@@ -5578,7 +5578,7 @@ function ClaimAnalysisFullScreen({ layers, activeLayerIdx, onLayerChange, onAdd,
 
   return (
     <div>
-      <div className="main__title"><span>Program Structure + Claim Analysis (Full)</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <div className="main__title"><span>Program Structure + Claim Analysis (Full)</span></div>
       <p className="main__subtitle" style={{ marginTop: -12, marginBottom: 24 }}>
         Pragmatic experiment — same Primary-layer placement as the other Claim Analysis preview, but the collapsible surfaces all 3 original cards (Settings, Limits &amp; Deductibles, Claim Overview &amp; Information) via tabs instead of one flattened field grid. No layer-scoping decided yet — this stays program-wide.
       </p>
