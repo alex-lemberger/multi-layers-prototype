@@ -189,6 +189,14 @@ const NAV_ITEMS_B = [
   { id: "final-decision",    label: "Final Decision",      icon: "fa-solid fa-flag-checkered", status: "" },
 ];
 
+// Burning-cost POC navigation: keep only Calculation / Adjustment > Premium Result visible.
+// Data is unchanged; this is purely a UI filter so the prototype focuses on the burning-cost story.
+const NAV_ITEMS_BURNING = [
+  { id: "calc-adjustment", label: "Calculation / Adjustment", icon: "fa-solid fa-calculator", children: [
+    { id: "premium-result", label: "Premium Result", icon: "fa-solid fa-chart-line" },
+  ]},
+];
+
 // ---- Default layered screens (which screens get layer-scoped data) ----
 // REMOVED — layers are parallel worlds, ALL screens are layer-scoped
 
@@ -444,9 +452,8 @@ function App() {
   const [activeLayerIdx, setActiveLayerIdx] = useState_app(0);
   const [activeNav, setActiveNav] = useState_app(() => {
     const hash = window.location.hash.replace("#", "");
-    const allNavIds = [...NAV_ITEMS_A, ...NAV_ITEMS_B].flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
-    const hiddenRoutes = ["layered-coverage-poc", "coverage-spreading-v2", "layered-coverage"];
-    return allNavIds.includes(hash) || hiddenRoutes.includes(hash) ? hash : "general-data";
+    const allNavIds = NAV_ITEMS_BURNING.flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
+    return allNavIds.includes(hash) ? hash : "premium-result";
   });
   const [showAddDrawer, setShowAddDrawer] = useState_app(false);
   const [deleteTarget, setDeleteTarget] = useState_app(null);
@@ -461,7 +468,7 @@ function App() {
     return () => { _fdListeners = _fdListeners.filter(f => f !== sub); };
   }, []);
 
-  const NAV_ITEMS = variant === "A" ? NAV_ITEMS_A : NAV_ITEMS_B;
+  const NAV_ITEMS = NAV_ITEMS_BURNING;
 
   // Persist layers to localStorage
   useEffect_app(() => { saveToLS(LS_KEY_LAYERS, layers); }, [layers]);
@@ -473,9 +480,7 @@ function App() {
     const onHash = () => {
       const hash = window.location.hash.replace("#", "");
       const allNavIds = NAV_ITEMS.flatMap(n => n.children ? [n.id, ...n.children.map(c => c.id)] : [n.id]);
-      // Hidden routes (no nav item, direct URL only)
-      const hiddenRoutes = ["layered-coverage-poc", "coverage-spreading-v2", "layered-coverage"];
-      if (allNavIds.includes(hash) || hiddenRoutes.includes(hash)) setActiveNav(hash);
+      if (allNavIds.includes(hash)) setActiveNav(hash);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);

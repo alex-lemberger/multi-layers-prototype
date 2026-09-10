@@ -1171,12 +1171,15 @@ function fmtCalcNum(n) {
 }
 
 // ---- Premium Result Screen ----
-function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
+function PremiumResultScreen({ layers, activeLayerIdx }) {
   const activeLayer = layers[activeLayerIdx];
   const data = getCalcData(activeLayerIdx);
   const [calculating, setCalculating] = useS(false);
+  const [methodPanelOpen, setMethodPanelOpen] = useS(false);
 
-  const totals = data.rows.reduce((acc, r) => ({
+  // Aggregate coverage rows into a single layer row. This mirrors premiumResult.png where
+  // the premium result is shown per layer, not per coverage.
+  const layerRow = data.rows.reduce((acc, r) => ({
     elBefore: acc.elBefore + (r.elBefore || 0),
     techAdj: r.techAdj != null ? (acc.techAdj || 0) + r.techAdj : acc.techAdj,
     elPremium: acc.elPremium + (r.elPremium || 0),
@@ -1194,15 +1197,17 @@ function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
 
   return (
     <div>
-      <div className="main__title"><span>Premium Result</span> <TitleLayerSwitcher layers={layers} activeLayerIdx={activeLayerIdx} onLayerChange={onLayerChange} /></div>
+      <div className="main__title"><span>Premium Result</span></div>
+      <p className="main__subtitle">Technical premium per layer of the program structure – expand a layer to see its coverages.</p>
 
       <div className="calc-table-wrap">
         <table className="grid-tbl grid-tbl--calc">
           <thead>
             <tr>
               <th style={{width: "16%"}}>Program Structure</th>
+              <th style={{width: "16%"}}>Calculation Method</th>
               <th>Expected Loss<br/>Before Technical<br/>Adjustment</th>
-              <th>Technical Adjustment <span className="calc-info-icon"><i className="fa-solid fa-circle-info" /></span></th>
+              <th>Technical<br/>Adjustment <span className="calc-info-icon"><i className="fa-solid fa-circle-info" /></span></th>
               <th>Expected Loss<br/>Premium</th>
               <th>Volatility<br/>Loading</th>
               <th>Claim Costs<br/>in %</th>
@@ -1212,42 +1217,50 @@ function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((r, i) => (
-              <tr key={i}>
-                <td className="t-strong">
-                  {i === 0 && <i className="fa-solid fa-chevron-up cov-chevron" style={{marginRight: 8}} />}
-                  {r.program}
-                </td>
-                <td className="t-mono">{fmtCalcNum(r.elBefore)}</td>
-                <td className="t-mono">{fmtCalcNum(r.techAdj)}</td>
-                <td className="t-mono">{fmtCalcNum(r.elPremium)}</td>
-                <td className="t-mono">{fmtCalcNum(r.volatility)}</td>
-                <td className="t-mono">{r.claimCosts != null ? r.claimCosts : ""}</td>
-                <td className="t-mono">{r.adminCosts != null ? r.adminCosts : ""}</td>
-                <td className="t-mono">{fmtCalcNum(r.tpBefore)}</td>
-                <td className="t-mono">{fmtCalcNum(r.techPremium)}</td>
-              </tr>
-            ))}
+            <tr>
+              <td className="t-strong">
+                <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                  <i className="fa-solid fa-layer-group" style={{color: "var(--fg-muted)"}} />
+                  {activeLayer?.name || "Primary"}
+                </div>
+                <button className="calc-coverages-link">Show all coverages</button>
+              </td>
+              <td>
+                <button className="calc-method-pill" onClick={() => setMethodPanelOpen(true)}>
+                  <span>Experience based</span>
+                  <i className="fa-solid fa-pencil" />
+                </button>
+              </td>
+              <td className="t-mono">{fmtCalcNum(layerRow.elBefore)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.techAdj)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.elPremium)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.volatility)}</td>
+              <td className="t-mono">{layerRow.claimCosts != null ? layerRow.claimCosts : ""}</td>
+              <td className="t-mono">{layerRow.adminCosts != null ? layerRow.adminCosts : ""}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.tpBefore)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.techPremium)}</td>
+            </tr>
           </tbody>
           <tfoot>
             <tr className="is-bold">
-              <td><i className="fa-solid fa-calculator" style={{marginRight: 8, fontSize: 12}} /> Total</td>
-              <td className="t-mono">{fmtCalcNum(totals.elBefore)}</td>
+              <td><i className="fa-solid fa-calculator" style={{marginRight: 8, fontSize: 12}} /> Total - all layers</td>
+              <td></td>
+              <td className="t-mono">{fmtCalcNum(layerRow.elBefore)}</td>
               <td className="t-mono"></td>
-              <td className="t-mono">{fmtCalcNum(totals.elPremium)}</td>
-              <td className="t-mono">{fmtCalcNum(totals.volatility)}</td>
-              <td className="t-mono">{totals.claimCosts || ""}</td>
-              <td className="t-mono">{totals.adminCosts || ""}</td>
-              <td className="t-mono">{fmtCalcNum(totals.tpBefore)}</td>
-              <td className="t-mono">{fmtCalcNum(totals.techPremium)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.elPremium)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.volatility)}</td>
+              <td className="t-mono">{layerRow.claimCosts || ""}</td>
+              <td className="t-mono">{layerRow.adminCosts || ""}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.tpBefore)}</td>
+              <td className="t-mono">{fmtCalcNum(layerRow.techPremium)}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <div className="calc-footer">
-        <button className="btn btn--outline calc-btn" onClick={handleCalculate} disabled={calculating}>
-          {calculating ? <F><i className="fa-solid fa-spinner fa-spin" style={{marginRight: 8}} /> Calculating...</F> : "Calculate"}
+        <button className="btn btn--primary calc-btn" onClick={handleCalculate} disabled={calculating}>
+          {calculating ? <F><i className="fa-solid fa-spinner fa-spin" style={{marginRight: 8}} /> Calculating...</F> : <F><i className="fa-solid fa-calculator" style={{marginRight: 8}} /> Calculate</F>}
         </button>
         {data.calcStatus.success && !calculating && (
           <div className="calc-status">
@@ -1261,9 +1274,224 @@ function PremiumResultScreen({ layers, activeLayerIdx, onLayerChange }) {
           </div>
         )}
       </div>
+
+      <CalculationMethodDrawer
+        open={methodPanelOpen}
+        layer={activeLayer}
+        onClose={() => setMethodPanelOpen(false)}
+      />
     </div>
   );
 }
+// ---- Calculation method selector + burning-cost details ----
+// Right-side drawer that opens from the Premium Result "Calculation Method" cell.
+// Shows the exposure/experience choice and, when experience is selected, the
+// Burning Cost Methodology and Combined sections from BC-edit-3.jpg.
+function CalculationMethodDrawer({ open, layer, onClose }) {
+  if (!open) return null;
+  const layerName = layer?.name || "Primary";
+  const [selected, setSelected] = useS("experience");
+
+  // Sample comparison values for the method selector POC.
+  const exposure = {
+    expectedLoss: 471198.76,
+    volatility: 32983.91,
+    tpBefore: 564401.87,
+    techPremium: 680002.26,
+    rateOnLine: "13.60%",
+  };
+  const experience = {
+    expectedLoss: 2852221.77,
+    volatility: 199655.52,
+    tpBefore: 3416391.24,
+    techPremium: 4116134.02,
+    rateOnLine: "82.32%",
+  };
+  const delta = (a, b) => b - a;
+
+  const MethodCard = ({ id, icon, title, subtitle }) => {
+    const isSelected = selected === id;
+    return (
+      <button className={`bc-method-card${isSelected ? " bc-method-card--selected" : ""}`} onClick={() => setSelected(id)}>
+        {isSelected && <i className="fa-solid fa-circle-check bc-method-card__check" />}
+        <div className="bc-method-card__icon"><i className={icon} /></div>
+        <div className="bc-method-card__title">{title}</div>
+        <div className="bc-method-card__subtitle">{subtitle}</div>
+      </button>
+    );
+  };
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={e => e.stopPropagation()} style={{width: "70vw", maxWidth: "none"}}>
+        <div className="drawer__header">
+          <div className="drawer__title">Calculation method – {layerName}</div>
+          <button className="drawer__close" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
+        </div>
+
+        <div className="drawer__body">
+          <div className="bc-breadcrumb">Premium Result <i className="fa-solid fa-chevron-right" /> Calculation method</div>
+          <h2 className="bc-title">Calculation method – {layerName}</h2>
+          <p className="bc-desc">The method determines the source of the expected loss for this layer — the loadings and fees behind it stay identical.</p>
+
+          <div className="bc-method-cards">
+            <MethodCard
+              id="exposure"
+              icon="fa-solid fa-calculator"
+              title="Exposure based (Tariff)"
+              subtitle="from premium rates"
+            />
+            <MethodCard
+              id="experience"
+              icon="fa-solid fa-fire"
+              title="Experience based (Burning Cost)"
+              subtitle="from claims history"
+            />
+          </div>
+
+          {selected === "experience" && (
+            <>
+              <div className="bc-section">
+                <h3 className="bc-section__title">Burning Cost Methodology</h3>
+                <h4 className="bc-section__subtitle">Burning Cost Result</h4>
+                <div className="bc-methodology-grid">
+                  <DisplayField label="Time of Calculation" value="10.12.2024 10:15" />
+                  <DisplayField label="Superimposed Inflation Deviation Reason" value="-" />
+                  <DisplayField label="Attritional Loss" value={fmtEUR(94700)} />
+                  <DisplayField label="Level of Uncertainty" value="Good" />
+                  <DisplayField label="Large Loss Loading" value={fmtEUR(12300)} />
+                  <DisplayField label="Calculation Id" value="BC-758842" />
+                  <DisplayField label="Expected Loss before technical adjustment" value={fmtEUR(107000)} />
+                  <DisplayField label="Warnings" value="-" />
+                  <DisplayField label="Working Cover / Large loss threshold" value="€ 500.000 / € 250.000" />
+                  <DisplayField label="Comment" value="-" />
+                  <DisplayField label="Recommended Inflation Type" value="Economic Inflation" />
+                  <DisplayField label="R-Service Status" value="Completed" />
+                  <DisplayField label="Inflation Type Deviation Reason" value="-" />
+                  <DisplayField label="BC Version" value="2.0" />
+                  <DisplayField label="Recommended Superimposed Inflation" value="0%" />
+                </div>
+              </div>
+
+              <div className="bc-section">
+                <h3 className="bc-section__title">Burning Cost and GL Premium Combined</h3>
+                <div className="bc-combined">
+                  <div className="bc-combined__section">
+                    <div className="bc-combined__section-title">Burning Cost Working Cover</div>
+                    <div className="bc-combined__row">
+                      <span className="bc-combined__label">Working Cover Limit (Calculated)</span>
+                      <span className="bc-combined__value">€ 500.000</span>
+                    </div>
+                    <div className="bc-combined__row">
+                      <span className="bc-combined__label">Expected Loss before technical adjustment WC</span>
+                      <span className="bc-combined__value">€ 107.000</span>
+                    </div>
+                  </div>
+                  <div className="bc-combined__section">
+                    <div className="bc-combined__section-title">Loadings</div>
+                    <div className="bc-combined__row">
+                      <span className="bc-combined__label">Remaining limit xs Working Cover</span>
+                      <span className="bc-combined__value">€ 31.500</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selected === "exposure" && (
+            <>
+              <div className="bc-compare">
+                <div className="bc-compare__header">
+                  <span></span>
+                  <span><i className="fa-solid fa-calculator" /> Exposure</span>
+                  <span><i className="fa-solid fa-fire" /> Experience</span>
+                  <span><span style={{fontWeight:700}}>Δ</span> Δ</span>
+                </div>
+                {[
+                  { label: "Expected loss", exp: exposure.expectedLoss, ex: experience.expectedLoss },
+                  { label: "Volatility loading", exp: exposure.volatility, ex: experience.volatility },
+                  { label: "TP before brokerage", exp: exposure.tpBefore, ex: experience.tpBefore },
+                  { label: "Technical premium", exp: exposure.techPremium, ex: experience.techPremium, bold: true },
+                ].map((row) => (
+                  <div key={row.label} className={`bc-compare__row${row.bold ? " bc-compare__row--bold" : ""}`}>
+                    <span>{row.label}</span>
+                    <span className="t-mono">{fmtCalcNum(row.exp)}</span>
+                    <span className="t-mono">{fmtCalcNum(row.ex)}</span>
+                    <span className="t-mono bc-compare__delta">+{fmtCalcNum(delta(row.exp, row.ex))}</span>
+                  </div>
+                ))}
+                <div className="bc-compare__row">
+                  <span>Rate on line</span>
+                  <span className="t-mono">{exposure.rateOnLine}</span>
+                  <span className="t-mono">{experience.rateOnLine}</span>
+                  <span className="t-mono bc-compare__delta">+68.72%</span>
+                </div>
+              </div>
+
+              <div className="bc-sidebyside">
+                <div className="bc-sidebyside__title">Technical premium – side by side</div>
+                <div className="bc-sidebyside__row">
+                  <label className="bc-radio">
+                    <input type="radio" name="tech-premium" checked={selected === "exposure"} readOnly />
+                    <span>Exposure</span>
+                  </label>
+                  <div className="bc-bar"><div className="bc-bar__fill bc-bar__fill--muted" style={{width: "16%"}} /></div>
+                  <span className="t-mono">{fmtCalcNum(exposure.techPremium)}</span>
+                </div>
+                <div className="bc-sidebyside__row">
+                  <label className="bc-radio">
+                    <input type="radio" name="tech-premium" checked={selected === "experience"} readOnly />
+                    <span>Experience</span>
+                  </label>
+                  <div className="bc-bar"><div className="bc-bar__fill" style={{width: "100%"}} /></div>
+                  <span className="t-mono">{fmtCalcNum(experience.techPremium)}</span>
+                </div>
+                <div className="bc-sidebyside__delta">
+                  <span style={{fontWeight:700}}>Δ</span> +{fmtCalcNum(delta(exposure.techPremium, experience.techPremium))} (+505.3%)
+                </div>
+                <p className="bc-sidebyside__hint">The claims history prices this layer at 6.1x the tariff.</p>
+              </div>
+
+              <div className="bc-basis-title">Claims basis</div>
+              <div className="bc-basis-grid">
+                <div className="bc-basis-card">
+                  <i className="fa-solid fa-clock-rotate-left bc-basis-card__icon" />
+                  <div className="bc-basis-card__label">History used</div>
+                  <div className="bc-basis-card__value">3 years</div>
+                  <div className="bc-basis-card__sub">2022-2024</div>
+                </div>
+                <div className="bc-basis-card">
+                  <i className="fa-solid fa-scale-balanced bc-basis-card__icon" />
+                  <div className="bc-basis-card__label"><span className="bc-avg">Ø</span> loss ratio</div>
+                  <div className="bc-basis-card__value">97.8%</div>
+                  <div className="bc-basis-card__sub">incurred / exposure</div>
+                </div>
+                <div className="bc-basis-card">
+                  <i className="fa-solid fa-arrow-trend-up bc-basis-card__icon" />
+                  <div className="bc-basis-card__label">Claims trend</div>
+                  <div className="bc-basis-card__value bc-basis-card__value--warn">+12.7% p. a.</div>
+                  <div className="bc-basis-card__sub">rising severity</div>
+                </div>
+              </div>
+
+              <div className="bc-alert">
+                <i className="fa-solid fa-triangle-exclamation bc-alert__icon" />
+                <div>Only 3 years of history — limited credibility. With a rising trend, consider the tariff as the floor and the burning cost as the indication.</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="drawer__footer" style={{justifyContent: "flex-start"}}>
+          <button className="btn btn--primary" onClick={onClose}>Save</button>
+          <button className="btn btn--outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ---- Loading / Discounts Screen ----
 function LoadingDiscountsScreen({ layers, activeLayerIdx, onLayerChange }) {
